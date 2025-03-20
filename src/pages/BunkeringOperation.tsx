@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { Container, Typography } from '@mui/material';
 import DataTable, { Column } from '../components/DataTable';
-import { BunkeringOperation as BunkeringOperationType } from '../types';
+import { BunkeringOperation as BunkeringOperationType, FuelType } from '../types';
 
 const columns: Column[] = [
   { id: 'date', label: 'Date', type: 'date' },
-  { id: 'fuelType', label: 'Fuel Type' },
+  { 
+    id: 'fuelType', 
+    label: 'Fuel Type', 
+    type: 'select',
+    options: ['ULSD', 'Change XL', 'Other'] as FuelType[]
+  },
   { id: 'density', label: 'Density', type: 'number' },
   { id: 'timeStart', label: 'Time Start', type: 'time' },
   { id: 'timeStop', label: 'Time Stop', type: 'time' },

@@ -1,9 +1,10 @@
 export type OperationType = 'In Port' | 'In Transit' | 'DP Operation' | 'Standby';
+export type FuelType = 'ULSD' | 'Change XL' | 'Other';
 
 export interface BunkeringOperation {
   id: string;
   date: string;
-  fuelType: string;
+  fuelType: FuelType;
   density: number;
   timeStart: string;
   timeStop: string;
