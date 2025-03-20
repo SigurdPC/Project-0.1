@@ -13,6 +13,10 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useState } from 'react';
@@ -20,7 +24,8 @@ import { useState } from 'react';
 export interface Column {
   id: string;
   label: string;
-  type?: 'text' | 'number' | 'date' | 'time';
+  type?: 'text' | 'number' | 'date' | 'time' | 'select';
+  options?: string[];
 }
 
 interface DataTableProps {
@@ -81,6 +86,53 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
     handleClose();
   };
 
+  const renderFormField = (column: Column) => {
+    if (column.type === 'select' && column.options) {
+      return (
+        <FormControl fullWidth margin="dense" sx={{ mb: 2 }} key={column.id}>
+          <InputLabel shrink>{column.label}</InputLabel>
+          <Select
+            value={formData[column.id] || ''}
+            label={column.label}
+            onChange={(e) => handleChange(column.id, e.target.value)}
+            notched
+            sx={{
+              '& .MuiSelect-select': {
+                paddingTop: '16px',
+                paddingBottom: '8px',
+              }
+            }}
+          >
+            {column.options.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      );
+    }
+
+    return (
+      <TextField
+        key={column.id}
+        margin="dense"
+        label={column.label}
+        type={column.type || 'text'}
+        fullWidth
+        value={formData[column.id] || ''}
+        onChange={(e) => handleChange(column.id, e.target.value)}
+        InputLabelProps={{
+          shrink: true,
+        }}
+        sx={{ mb: 2 }}
+        inputProps={{
+          max: column.type === 'date' ? '9999-12-31' : undefined
+        }}
+      />
+    );
+  };
+
   return (
     <>
       <Button
@@ -126,24 +178,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
           {editingId ? 'Edit Record' : 'Add New Record'}
         </DialogTitle>
         <DialogContent>
-          {columns.map((column) => (
-            <TextField
-              key={column.id}
-              margin="dense"
-              label={column.label}
-              type={column.type || 'text'}
-              fullWidth
-              value={formData[column.id] || ''}
-              onChange={(e) => handleChange(column.id, e.target.value)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-              sx={{ mb: 2 }}
-              inputProps={{
-                max: column.type === 'date' ? '9999-12-31' : undefined
-              }}
-            />
-          ))}
+          {columns.map((column) => renderFormField(column))}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>

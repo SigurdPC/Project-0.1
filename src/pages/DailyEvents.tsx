@@ -1,7 +1,8 @@
-import { useState } from 'react';
 import { Container, Typography } from '@mui/material';
 import DataTable, { Column } from '../components/DataTable';
-import { DailyEvent } from '../types';
+import { DailyEvent, OperationType } from '../types';
+import useLocalStorage from '../hooks/useLocalStorage';
+import { useState } from 'react';
 
 const columns: Column[] = [
   { id: 'date', label: 'Date', type: 'date' },
@@ -9,7 +10,12 @@ const columns: Column[] = [
   { id: 'endTime', label: 'End Time', type: 'time' },
   { id: 'origin', label: 'Origin' },
   { id: 'destination', label: 'Destination' },
-  { id: 'operationType', label: 'Operation Type' },
+  { 
+    id: 'operationType', 
+    label: 'Operation Type', 
+    type: 'select',
+    options: ['In Port', 'In Transit', 'DP Operation', 'Standby'] as OperationType[]
+  },
   { id: 'consumptionME', label: 'Consumption M/E', type: 'number' },
   { id: 'consumptionAE', label: 'Consumption A/E', type: 'number' },
 ];
@@ -22,11 +28,11 @@ const DailyEvents = () => {
   };
 
   const handleEdit = (id: string, updatedData: DailyEvent) => {
-    setData(data.map((item) => (item.id === id ? updatedData : item)));
+    setData(data.map((item: DailyEvent) => (item.id === id ? updatedData : item)));
   };
 
   const handleDelete = (id: string) => {
-    setData(data.filter((item) => item.id !== id));
+    setData(data.filter((item: DailyEvent) => item.id !== id));
   };
 
   return (

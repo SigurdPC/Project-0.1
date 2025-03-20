@@ -1,3 +1,5 @@
+export type OperationType = 'In Port' | 'In Transit' | 'DP Operation' | 'Standby';
+
 export interface BunkeringOperation {
   id: string;
   date: string;
@@ -15,7 +17,7 @@ export interface DailyEvent {
   endTime: string;
   origin: string;
   destination: string;
-  operationType: string;
+  operationType: OperationType;
   consumptionME: number;
   consumptionAE: number;
 }
