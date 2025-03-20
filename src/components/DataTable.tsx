@@ -53,6 +53,25 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
     setFormData({});
   };
 
+  const handleChange = (columnId: string, value: string) => {
+    const column = columns.find(col => col.id === columnId);
+    
+    if (column?.type === 'date' && value) {
+      const parts = value.split('-');
+      if (parts[0]) {
+        // Ограничиваем год до 4 цифр
+        parts[0] = parts[0].slice(0, 4);
+        // Если год больше 9999, устанавливаем 9999
+        if (parseInt(parts[0]) > 9999) {
+          parts[0] = '9999';
+        }
+        value = parts.join('-');
+      }
+    }
+
+    setFormData((prev: Record<string, any>) => ({ ...prev, [columnId]: value }));
+  };
+
   const handleSubmit = () => {
     if (editingId) {
       onEdit(editingId, formData);
@@ -115,13 +134,14 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
               type={column.type || 'text'}
               fullWidth
               value={formData[column.id] || ''}
-              onChange={(e) =>
-                setFormData({ ...formData, [column.id]: e.target.value })
-              }
+              onChange={(e) => handleChange(column.id, e.target.value)}
               InputLabelProps={{
                 shrink: true,
               }}
               sx={{ mb: 2 }}
+              inputProps={{
+                max: column.type === 'date' ? '9999-12-31' : undefined
+              }}
             />
           ))}
         </DialogContent>
