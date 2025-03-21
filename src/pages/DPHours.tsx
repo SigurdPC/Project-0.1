@@ -31,6 +31,16 @@ interface DPHours {
   time: string;
 }
 
+// Интерфейс для рабочей сессии (от DP Setup до DP OFF)
+interface DPSession {
+  startDate: string;
+  startTime: string;
+  endDate: string | null;
+  endTime: string | null;
+  location: string;
+  duration: number; // в минутах
+}
+
 // Define colors for different operation types
 const operationColors: Record<OperationType, string> = {
   'DP Setup': '#4caf50',      // green
@@ -48,6 +58,12 @@ const DPHoursPage = () => {
   const [tabValue, setTabValue] = useState<number>(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<{start: string, end: string}>({
+    start: new Date().toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
+  const [isStatsDialogOpen, setIsStatsDialogOpen] = useState<boolean>(false);
+  const [dpSessions, setDpSessions] = useState<DPSession[]>([]);
   const [newEvent, setNewEvent] = useState<Partial<DPHours>>({
     date: selectedDate,
     time: '',
@@ -135,6 +151,108 @@ const DPHoursPage = () => {
     }
   };
   
+  // Функция расчета времени между DP Setup и DP OFF
+  const calculateDPSessions = (startDate: string, endDate: string) => {
+    // Отфильтруем события по указанному диапазону дат
+    const filteredEvents = data.filter(event => {
+      return event.date >= startDate && event.date <= endDate;
+    });
+    
+    // Сортируем события по дате и времени
+    const sortedEvents = [...filteredEvents].sort((a, b) => {
+      if (a.date === b.date) {
+        return a.time.localeCompare(b.time);
+      }
+      return a.date.localeCompare(b.date);
+    });
+
+    interface SessionTemp {
+      startDate: string;
+      startTime: string;
+      location: string;
+    }
+    
+    const sessions: DPSession[] = [];
+    let currentSession: SessionTemp | null = null;
+    
+    for (const event of sortedEvents) {
+      if (event.operationType === 'DP Setup') {
+        // Если начинается новая сессия DP Setup
+        if (currentSession) {
+          // Если предыдущая сессия не завершилась, завершаем её с нулевой длительностью
+          sessions.push({
+            startDate: currentSession.startDate,
+            startTime: currentSession.startTime,
+            endDate: null,
+            endTime: null,
+            location: currentSession.location,
+            duration: 0
+          });
+        }
+        
+        // Начинаем новую сессию
+        currentSession = {
+          startDate: event.date,
+          startTime: event.time,
+          location: event.location
+        };
+      } else if (event.operationType === 'DP OFF' && currentSession) {
+        // Завершаем текущую сессию
+        const startDateTime = new Date(`${currentSession.startDate}T${currentSession.startTime}`);
+        const endDateTime = new Date(`${event.date}T${event.time}`);
+        const durationMs = endDateTime.getTime() - startDateTime.getTime();
+        const durationMinutes = Math.floor(durationMs / (1000 * 60));
+        
+        sessions.push({
+          startDate: currentSession.startDate,
+          startTime: currentSession.startTime,
+          endDate: event.date,
+          endTime: event.time,
+          location: currentSession.location,
+          duration: durationMinutes
+        });
+        
+        currentSession = null;
+      }
+    }
+    
+    // Если есть незавершенная сессия, добавляем её
+    if (currentSession) {
+      sessions.push({
+        startDate: currentSession.startDate,
+        startTime: currentSession.startTime,
+        endDate: null,
+        endTime: null,
+        location: currentSession.location,
+        duration: 0
+      });
+    }
+    
+    return sessions;
+  };
+  
+  // Функция для форматирования длительности в часах и минутах
+  const formatDuration = (minutes: number) => {
+    if (minutes === 0) return "В процессе";
+    
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}ч ${mins}м`;
+  };
+  
+  // Подсчет общего времени
+  const calculateTotalDuration = (sessions: DPSession[]) => {
+    const totalMinutes = sessions.reduce((sum, session) => sum + session.duration, 0);
+    return formatDuration(totalMinutes);
+  };
+  
+  // Обработчик для открытия диалога статистики
+  const handleOpenStats = () => {
+    const sessions = calculateDPSessions(dateRange.start, dateRange.end);
+    setDpSessions(sessions);
+    setIsStatsDialogOpen(true);
+  };
+  
   return (
     <Container sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom>
@@ -194,13 +312,14 @@ const DPHoursPage = () => {
             <Typography variant="h6">
               All Records
             </Typography>
-            <Button 
-              variant="contained" 
-              startIcon={<AddIcon />}
-              onClick={() => setIsAddDialogOpen(true)}
-            >
-              Add Event
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button 
+                variant="outlined"
+                onClick={handleOpenStats}
+              >
+                Статистика DP
+              </Button>
+            </Box>
           </Box>
           
           {/* Dates with expandable sections */}
@@ -314,6 +433,97 @@ const DPHoursPage = () => {
         <DialogActions>
           <Button onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleAddEvent} variant="contained" color="primary">Add</Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Dialog for DP Statistics */}
+      <Dialog open={isStatsDialogOpen} onClose={() => setIsStatsDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Статистика DP времени</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5, mb: 2 }}>
+            <Grid item xs={12} sm={5}>
+              <TextField
+                label="Начало периода"
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={5}>
+              <TextField
+                label="Конец периода"
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={2}>
+              <Button 
+                variant="contained" 
+                onClick={() => {
+                  const sessions = calculateDPSessions(dateRange.start, dateRange.end);
+                  setDpSessions(sessions);
+                }}
+                fullWidth
+                sx={{ height: '56px' }}
+              >
+                Обновить
+              </Button>
+            </Grid>
+          </Grid>
+          
+          <Divider sx={{ mb: 2 }} />
+          
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Общее время работы: {calculateTotalDuration(dpSessions)}
+          </Typography>
+          
+          {dpSessions.length > 0 ? (
+            <List>
+              {dpSessions.map((session, index) => (
+                <React.Fragment key={index}>
+                  {index > 0 && <Divider />}
+                  <ListItem sx={{ py: 2 }}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={3}>
+                        <Typography variant="body2" color="text.secondary">Начало:</Typography>
+                        <Typography variant="body1">
+                          {session.startDate} {session.startTime}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <Typography variant="body2" color="text.secondary">Окончание:</Typography>
+                        <Typography variant="body1">
+                          {session.endDate ? `${session.endDate} ${session.endTime}` : "Не завершено"}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <Typography variant="body2" color="text.secondary">Локация:</Typography>
+                        <Typography variant="body1">{session.location}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <Typography variant="body2" color="text.secondary">Длительность:</Typography>
+                        <Typography variant="body1" fontWeight="bold">
+                          {formatDuration(session.duration)}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </ListItem>
+                </React.Fragment>
+              ))}
+            </List>
+          ) : (
+            <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+              Нет данных за выбранный период
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsStatsDialogOpen(false)}>Закрыть</Button>
         </DialogActions>
       </Dialog>
     </Container>
