@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Container, Typography, Box, Paper, TextField, 
   Button, Tabs, Tab, List, ListItem, ListItemText, 
@@ -6,7 +6,7 @@ import {
   Dialog, DialogTitle, DialogContent, 
   DialogActions, FormControl, InputLabel, Select, 
   MenuItem, Divider, Grid,
-  Collapse, FormControlLabel
+  Collapse, FormControlLabel, Snackbar, Alert, CircularProgress
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -18,6 +18,7 @@ import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon
 } from '@mui/icons-material';
+import dphoursApi, { DPHours as APIDPHours } from '../api/dphoursApi';
 
 // Define operation type
 type OperationType = 'DP Setup' | 'Moving in' | 'Handling Offshore' | 'Pulling Out' | 'DP OFF';
@@ -25,6 +26,7 @@ type OperationType = 'DP Setup' | 'Moving in' | 'Handling Offshore' | 'Pulling O
 // Define DPHours interface
 interface DPHours {
   id: string;
+  _id?: string; // MongoDB ID
   date: string;
   location: string;
   operationType: OperationType;
@@ -59,6 +61,17 @@ const formatDate = (dateStr: string): string => {
 
 const DPHoursPage = () => {
   const [data, setData] = useState<DPHours[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0] // current date by default
   );
@@ -87,6 +100,50 @@ const DPHoursPage = () => {
     operationType: 'DP Setup'
   });
   
+  // Fetch data from API when component mounts
+  useEffect(() => {
+    fetchData();
+  }, []);
+  
+  // Function to fetch all records from API
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const records = await dphoursApi.getAllRecords();
+      // Transform API data to match our component's data structure
+      const transformedRecords = records.map(record => ({
+        id: record._id || record.id || Date.now().toString(),
+        date: record.date,
+        time: record.time,
+        location: record.location,
+        operationType: record.operationType
+      }));
+      
+      setData(transformedRecords);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch data:', err);
+      setError('Failed to load data. Please try again later.');
+      showSnackbar('Failed to load data', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Function to show snackbar notification
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' | 'warning') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
+  
+  // Handle snackbar close
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+  
   // Handle changes in the new event form
   const handleNewEventChange = (field: keyof DPHours, value: string) => {
     setNewEvent({
@@ -96,31 +153,47 @@ const DPHoursPage = () => {
   };
   
   // Add new event
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newEvent.date || !newEvent.time || !newEvent.location || !newEvent.operationType) {
-      alert('Please fill in all fields');
+      showSnackbar('Please fill in all fields', 'warning');
       return;
     }
     
-    const newId = Date.now().toString();
-    const fullEvent: DPHours = {
-      id: newId,
-      date: newEvent.date!,
-      time: newEvent.time!,
-      location: newEvent.location!,
-      operationType: newEvent.operationType as OperationType
-    };
-    
-    setData([...data, fullEvent]);
-    setIsAddDialogOpen(false);
-    
-    // Reset form but keep the current date
-    setNewEvent({
-      date: selectedDate,
-      time: '',
-      location: '',
-      operationType: 'DP Setup'
-    });
+    setLoading(true);
+    try {
+      const savedRecord = await dphoursApi.createRecord({
+        date: newEvent.date!,
+        time: newEvent.time!,
+        location: newEvent.location!,
+        operationType: newEvent.operationType as OperationType
+      });
+      
+      const newId = savedRecord._id || Date.now().toString();
+      const fullEvent: DPHours = {
+        id: newId,
+        date: savedRecord.date,
+        time: savedRecord.time,
+        location: savedRecord.location,
+        operationType: savedRecord.operationType
+      };
+      
+      setData([...data, fullEvent]);
+      setIsAddDialogOpen(false);
+      showSnackbar('Event added successfully', 'success');
+      
+      // Reset form but keep the current date
+      setNewEvent({
+        date: selectedDate,
+        time: '',
+        location: '',
+        operationType: 'DP Setup'
+      });
+    } catch (err) {
+      console.error('Failed to add event:', err);
+      showSnackbar('Failed to add event', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Switch between tabs
@@ -129,13 +202,43 @@ const DPHoursPage = () => {
   };
   
   // Edit record function
-  const handleEdit = (id: string, updatedData: DPHours) => {
+  const handleEdit = async (id: string, updatedData: DPHours) => {
+    setLoading(true);
+    try {
+      await dphoursApi.updateRecord(id, {
+        date: updatedData.date,
+        time: updatedData.time,
+        location: updatedData.location,
+        operationType: updatedData.operationType
+      });
+      
     setData(data.map((item) => (item.id === id ? updatedData : item)));
+      showSnackbar('Record updated successfully', 'success');
+    } catch (err) {
+      console.error('Failed to update record:', err);
+      showSnackbar('Failed to update record', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Delete record function
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this record?')) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await dphoursApi.deleteRecord(id);
     setData(data.filter((item) => item.id !== id));
+      showSnackbar('Record deleted successfully', 'success');
+    } catch (err) {
+      console.error('Failed to delete record:', err);
+      showSnackbar('Failed to delete record', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // List of events for the selected date, sorted by time
@@ -173,10 +276,11 @@ const DPHoursPage = () => {
     endDate: string, 
     useTimeFilter: boolean = false,
     startTime: string = '00:00', 
-    endTime: string = '23:59'
+    endTime: string = '23:59',
+    filteredData: DPHours[] = data
   ) => {
     // Отфильтруем события по указанному диапазону дат
-    const filteredEvents = data.filter(event => {
+    const filteredEvents = filteredData.filter(event => {
       // Фильтр по диапазону дат
       const dateInRange = event.date >= startDate && event.date <= endDate;
       
@@ -352,23 +456,61 @@ const DPHoursPage = () => {
   };
   
   // Обработчик для открытия диалога статистики
-  const handleOpenStats = () => {
-    const sessions = calculateDPSessions(
-      dateRange.start, 
-      dateRange.end, 
-      dateRange.useTimeFilter,
-      dateRange.startTime,
-      dateRange.endTime
-    );
-    setDpSessions(sessions);
-    setIsStatsDialogOpen(true);
+  const handleOpenStats = async () => {
+    setLoading(true);
+    try {
+      let records;
+      // Get records from API based on date range
+      records = await dphoursApi.getRecordsByDateRange(dateRange.start, dateRange.end);
+      
+      // Transform API data to match our component's data structure
+      const transformedRecords = records.map(record => ({
+        id: record._id || record.id || Date.now().toString(),
+        date: record.date,
+        time: record.time,
+        location: record.location,
+        operationType: record.operationType
+      }));
+      
+      // Calculate sessions using the transformed data
+      const sessions = calculateDPSessions(
+        dateRange.start, 
+        dateRange.end, 
+        dateRange.useTimeFilter,
+        dateRange.startTime,
+        dateRange.endTime,
+        transformedRecords
+      );
+      
+      setDpSessions(sessions);
+      setIsStatsDialogOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch stats data:', err);
+      showSnackbar('Failed to load statistics', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
-  
+
   return (
     <Container sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom>
         DP Hours
       </Typography>
+      
+      {/* Loading indicator */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+      
+      {/* Error message */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
       
       {/* Tabs for switching between modes */}
       <Paper sx={{ mb: 3 }}>
@@ -476,9 +618,9 @@ const DPHoursPage = () => {
                     <Box sx={{ p: 2, bgcolor: 'background.paper' }}>
                       <Timeline 
                         events={getEventsForDate(date)} 
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
                     </Box>
                   </Collapse>
                 </Paper>
@@ -715,6 +857,18 @@ const DPHoursPage = () => {
           <Button onClick={() => setIsStatsDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Snackbar for notifications */}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
