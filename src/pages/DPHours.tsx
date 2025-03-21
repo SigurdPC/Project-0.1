@@ -38,7 +38,7 @@ interface DPSession {
   endDate: string | null;
   endTime: string | null;
   location: string;
-  duration: number; // в минутах
+  duration: number; // in minutes
 }
 
 // Define colors for different operation types
@@ -48,6 +48,13 @@ const operationColors: Record<OperationType, string> = {
   'Handling Offshore': '#ff9800', // orange
   'Pulling Out': '#9c27b0',   // purple 
   'DP OFF': '#f44336'         // red
+};
+
+// Функция для форматирования даты из yyyy-mm-dd в dd.mm.yyyy
+const formatDate = (dateStr: string): string => {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split('-');
+  return `${day}.${month}.${year}`;
 };
 
 const DPHoursPage = () => {
@@ -233,11 +240,11 @@ const DPHoursPage = () => {
   
   // Функция для форматирования длительности в часах и минутах
   const formatDuration = (minutes: number) => {
-    if (minutes === 0) return "В процессе";
+    if (minutes === 0) return "In progress";
     
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours}ч ${mins}м`;
+    return `${hours}h ${mins}m`;
   };
   
   // Подсчет общего времени
@@ -269,7 +276,7 @@ const DPHoursPage = () => {
           centered
         >
           <Tab icon={<TodayIcon />} label="Today" />
-          <Tab icon={<TimelineIcon />} label="All Records" />
+          <Tab icon={<TimelineIcon />} label="History" />
         </Tabs>
       </Paper>
       
@@ -278,7 +285,7 @@ const DPHoursPage = () => {
         <Paper sx={{ p: 3, mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Typography variant="h6">
-              Events for Today ({new Date().toLocaleDateString()})
+              Events for Today ({formatDate(new Date().toISOString().split('T')[0])})
             </Typography>
             <Button 
               variant="contained" 
@@ -305,19 +312,19 @@ const DPHoursPage = () => {
         </Paper>
       )}
       
-      {/* Content for "All Records" tab */}
+      {/* Content for "History" tab */}
       {tabValue === 1 && (
         <Paper sx={{ p: 2 }}>
           <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">
-              All Records
+              History
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Button 
                 variant="outlined"
                 onClick={handleOpenStats}
               >
-                Статистика DP
+                DP Statistics
               </Button>
             </Box>
           </Box>
@@ -347,7 +354,7 @@ const DPHoursPage = () => {
                     }}
                     onClick={() => toggleDateExpansion(date)}
                   >
-                    <Typography variant="h6">{date}</Typography>
+                    <Typography variant="h6">{formatDate(date)}</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Chip 
                         label={`${getEventsForDate(date).length} events`} 
@@ -438,12 +445,12 @@ const DPHoursPage = () => {
       
       {/* Dialog for DP Statistics */}
       <Dialog open={isStatsDialogOpen} onClose={() => setIsStatsDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Статистика DP времени</DialogTitle>
+        <DialogTitle>DP Time Statistics</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5, mb: 2 }}>
             <Grid item xs={12} sm={5}>
               <TextField
-                label="Начало периода"
+                label="Start Date"
                 type="date"
                 value={dateRange.start}
                 onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
@@ -453,7 +460,7 @@ const DPHoursPage = () => {
             </Grid>
             <Grid item xs={12} sm={5}>
               <TextField
-                label="Конец периода"
+                label="End Date"
                 type="date"
                 value={dateRange.end}
                 onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
@@ -471,7 +478,7 @@ const DPHoursPage = () => {
                 fullWidth
                 sx={{ height: '56px' }}
               >
-                Обновить
+                Update
               </Button>
             </Grid>
           </Grid>
@@ -479,7 +486,7 @@ const DPHoursPage = () => {
           <Divider sx={{ mb: 2 }} />
           
           <Typography variant="h6" sx={{ mb: 2 }}>
-            Общее время работы: {calculateTotalDuration(dpSessions)}
+            Total Working Time: {calculateTotalDuration(dpSessions)}
           </Typography>
           
           {dpSessions.length > 0 ? (
@@ -490,23 +497,23 @@ const DPHoursPage = () => {
                   <ListItem sx={{ py: 2 }}>
                     <Grid container spacing={2}>
                       <Grid item xs={12} sm={3}>
-                        <Typography variant="body2" color="text.secondary">Начало:</Typography>
+                        <Typography variant="body2" color="text.secondary">Start:</Typography>
                         <Typography variant="body1">
-                          {session.startDate} {session.startTime}
+                          {formatDate(session.startDate)} {session.startTime}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={3}>
-                        <Typography variant="body2" color="text.secondary">Окончание:</Typography>
+                        <Typography variant="body2" color="text.secondary">End:</Typography>
                         <Typography variant="body1">
-                          {session.endDate ? `${session.endDate} ${session.endTime}` : "Не завершено"}
+                          {session.endDate ? `${formatDate(session.endDate)} ${session.endTime}` : "Not completed"}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={3}>
-                        <Typography variant="body2" color="text.secondary">Локация:</Typography>
+                        <Typography variant="body2" color="text.secondary">Location:</Typography>
                         <Typography variant="body1">{session.location}</Typography>
                       </Grid>
                       <Grid item xs={12} sm={3}>
-                        <Typography variant="body2" color="text.secondary">Длительность:</Typography>
+                        <Typography variant="body2" color="text.secondary">Duration:</Typography>
                         <Typography variant="body1" fontWeight="bold">
                           {formatDuration(session.duration)}
                         </Typography>
@@ -518,12 +525,12 @@ const DPHoursPage = () => {
             </List>
           ) : (
             <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
-              Нет данных за выбранный период
+              No data for selected period
             </Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsStatsDialogOpen(false)}>Закрыть</Button>
+          <Button onClick={() => setIsStatsDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Container>
