@@ -6,7 +6,7 @@ import {
   Dialog, DialogTitle, DialogContent, 
   DialogActions, FormControl, InputLabel, Select, 
   MenuItem, Divider, Grid,
-  Collapse
+  Collapse, FormControlLabel
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -65,9 +65,18 @@ const DPHoursPage = () => {
   const [tabValue, setTabValue] = useState<number>(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<{start: string, end: string}>({
+  const [dateRange, setDateRange] = useState<{
+    start: string, 
+    end: string, 
+    startTime: string, 
+    endTime: string,
+    useTimeFilter: boolean
+  }>({
     start: new Date().toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0]
+    end: new Date().toISOString().split('T')[0],
+    startTime: '00:00',
+    endTime: '23:59',
+    useTimeFilter: false
   });
   const [isStatsDialogOpen, setIsStatsDialogOpen] = useState<boolean>(false);
   const [dpSessions, setDpSessions] = useState<DPSession[]>([]);
@@ -159,10 +168,40 @@ const DPHoursPage = () => {
   };
   
   // Функция расчета времени между DP Setup и DP OFF
-  const calculateDPSessions = (startDate: string, endDate: string) => {
+  const calculateDPSessions = (
+    startDate: string, 
+    endDate: string, 
+    useTimeFilter: boolean = false,
+    startTime: string = '00:00', 
+    endTime: string = '23:59'
+  ) => {
     // Отфильтруем события по указанному диапазону дат
     const filteredEvents = data.filter(event => {
-      return event.date >= startDate && event.date <= endDate;
+      // Фильтр по диапазону дат
+      const dateInRange = event.date >= startDate && event.date <= endDate;
+      
+      // Если не используем фильтр по времени, возвращаем только результат проверки даты
+      if (!useTimeFilter) return dateInRange;
+      
+      // Проверяем диапазон времени для смены
+      // Если начало смены меньше конца смены (например, 08:00-20:00) - обычная смена в течение одного дня
+      if (startTime <= endTime) {
+        return dateInRange && event.time >= startTime && event.time <= endTime;
+      } 
+      // Если начало смены больше конца смены (например, 20:00-08:00) - ночная смена, пересекающая полночь
+      else {
+        // Для времени с 00:00 до конца смены следующего дня
+        if (event.time <= endTime) {
+          // Первый день смены необходимо исключить для этого диапазона времени
+          return dateInRange && event.date > startDate;
+        }
+        // Для времени с начала смены до 23:59
+        else if (event.time >= startTime) {
+          // Последний день смены необходимо исключить для этого диапазона времени
+          return dateInRange && event.date < endDate;
+        }
+        return false;
+      }
     });
     
     // Сортируем события по дате и времени
@@ -186,14 +225,43 @@ const DPHoursPage = () => {
       if (event.operationType === 'DP Setup') {
         // Если начинается новая сессия DP Setup
         if (currentSession) {
-          // Если предыдущая сессия не завершилась, завершаем её с нулевой длительностью
+          // Если предыдущая сессия не завершилась, рассчитываем время до конца смены
+          let durationMinutes = 0;
+          
+          if (useTimeFilter) {
+            // Рассчитываем время до конца смены
+            const sessionStartDateTime = new Date(`${currentSession.startDate}T${currentSession.startTime}`);
+            
+            // Создаем дату-время окончания смены в тот же день
+            let sessionEndDateTime: Date;
+            
+            // Если начало смены меньше конца смены - смена заканчивается в тот же день
+            if (startTime <= endTime) {
+              sessionEndDateTime = new Date(`${currentSession.startDate}T${endTime}`);
+            } else {
+              // Ночная смена - заканчивается на следующий день
+              const nextDay = new Date(currentSession.startDate);
+              nextDay.setDate(nextDay.getDate() + 1);
+              const nextDayStr = nextDay.toISOString().split('T')[0];
+              sessionEndDateTime = new Date(`${nextDayStr}T${endTime}`);
+            }
+            
+            // Рассчитываем длительность
+            durationMinutes = Math.floor((sessionEndDateTime.getTime() - sessionStartDateTime.getTime()) / (1000 * 60));
+            
+            // Если получается отрицательное время, значит смена уже закончилась
+            if (durationMinutes < 0) {
+              durationMinutes = 0;
+            }
+          }
+          
           sessions.push({
             startDate: currentSession.startDate,
             startTime: currentSession.startTime,
             endDate: null,
             endTime: null,
             location: currentSession.location,
-            duration: 0
+            duration: durationMinutes
           });
         }
         
@@ -225,13 +293,43 @@ const DPHoursPage = () => {
     
     // Если есть незавершенная сессия, добавляем её
     if (currentSession) {
+      // Рассчитываем время до конца смены
+      let durationMinutes = 0;
+      
+      if (useTimeFilter) {
+        // Рассчитываем время до конца смены
+        const sessionStartDateTime = new Date(`${currentSession.startDate}T${currentSession.startTime}`);
+        
+        // Создаем дату-время окончания смены в тот же день
+        let sessionEndDateTime: Date;
+        
+        // Если начало смены меньше конца смены - смена заканчивается в тот же день
+        if (startTime <= endTime) {
+          sessionEndDateTime = new Date(`${currentSession.startDate}T${endTime}`);
+        } else {
+          // Ночная смена - заканчивается на следующий день
+          const nextDay = new Date(currentSession.startDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const nextDayStr = nextDay.toISOString().split('T')[0];
+          sessionEndDateTime = new Date(`${nextDayStr}T${endTime}`);
+        }
+        
+        // Рассчитываем длительность
+        durationMinutes = Math.floor((sessionEndDateTime.getTime() - sessionStartDateTime.getTime()) / (1000 * 60));
+        
+        // Если получается отрицательное время, значит смена уже закончилась
+        if (durationMinutes < 0) {
+          durationMinutes = 0;
+        }
+      }
+      
       sessions.push({
         startDate: currentSession.startDate,
         startTime: currentSession.startTime,
         endDate: null,
         endTime: null,
         location: currentSession.location,
-        duration: 0
+        duration: durationMinutes
       });
     }
     
@@ -255,7 +353,13 @@ const DPHoursPage = () => {
   
   // Обработчик для открытия диалога статистики
   const handleOpenStats = () => {
-    const sessions = calculateDPSessions(dateRange.start, dateRange.end);
+    const sessions = calculateDPSessions(
+      dateRange.start, 
+      dateRange.end, 
+      dateRange.useTimeFilter,
+      dateRange.startTime,
+      dateRange.endTime
+    );
     setDpSessions(sessions);
     setIsStatsDialogOpen(true);
   };
@@ -447,6 +551,7 @@ const DPHoursPage = () => {
       <Dialog open={isStatsDialogOpen} onClose={() => setIsStatsDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>DP Time Statistics</DialogTitle>
         <DialogContent>
+          {/* Date Range Selection */}
           <Grid container spacing={2} sx={{ mt: 0.5, mb: 2 }}>
             <Grid item xs={12} sm={5}>
               <TextField
@@ -472,7 +577,13 @@ const DPHoursPage = () => {
               <Button 
                 variant="contained" 
                 onClick={() => {
-                  const sessions = calculateDPSessions(dateRange.start, dateRange.end);
+                  const sessions = calculateDPSessions(
+                    dateRange.start, 
+                    dateRange.end,
+                    dateRange.useTimeFilter,
+                    dateRange.startTime,
+                    dateRange.endTime
+                  );
                   setDpSessions(sessions);
                 }}
                 fullWidth
@@ -483,10 +594,71 @@ const DPHoursPage = () => {
             </Grid>
           </Grid>
           
+          {/* Shift Filter Controls */}
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Chip
+                label={dateRange.useTimeFilter ? "Shift Filter: ON" : "Shift Filter: OFF"}
+                color={dateRange.useTimeFilter ? "primary" : "default"}
+                onClick={() => setDateRange({
+                  ...dateRange, 
+                  useTimeFilter: !dateRange.useTimeFilter
+                })}
+                sx={{ cursor: 'pointer', mr: 2 }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                {dateRange.useTimeFilter 
+                  ? "Filtering events by shift time" 
+                  : "Click to enable shift time filtering"}
+              </Typography>
+            </Box>
+            
+            {dateRange.useTimeFilter && (
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} sm={6}>
+                    <Box>
+                      <Typography variant="subtitle2" gutterBottom>Shift Start Time:</Typography>
+                      <TextField
+                        type="time"
+                        value={dateRange.startTime}
+                        onChange={(e) => setDateRange({...dateRange, startTime: e.target.value})}
+                        size="small"
+                        fullWidth
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Box>
+                      <Typography variant="subtitle2" gutterBottom>Shift End Time:</Typography>
+                      <TextField
+                        type="time"
+                        value={dateRange.endTime}
+                        onChange={(e) => setDateRange({...dateRange, endTime: e.target.value})}
+                        size="small"
+                        fullWidth
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+            )}
+          </Box>
+          
           <Divider sx={{ mb: 2 }} />
           
           <Typography variant="h6" sx={{ mb: 2 }}>
             Total Working Time: {calculateTotalDuration(dpSessions)}
+            {dateRange.useTimeFilter && (
+              <Chip 
+                label={`Shift: ${dateRange.startTime} - ${dateRange.endTime}`}
+                size="small"
+                color="primary"
+                sx={{ ml: 2 }}
+              />
+            )}
           </Typography>
           
           {dpSessions.length > 0 ? (
@@ -505,7 +677,12 @@ const DPHoursPage = () => {
                       <Grid item xs={12} sm={3}>
                         <Typography variant="body2" color="text.secondary">End:</Typography>
                         <Typography variant="body1">
-                          {session.endDate ? `${formatDate(session.endDate)} ${session.endTime}` : "Not completed"}
+                          {session.endDate 
+                            ? `${formatDate(session.endDate)} ${session.endTime}` 
+                            : (session.duration > 0 
+                              ? `End of shift (estimate)` 
+                              : "Not completed")
+                          }
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={3}>
@@ -515,7 +692,12 @@ const DPHoursPage = () => {
                       <Grid item xs={12} sm={3}>
                         <Typography variant="body2" color="text.secondary">Duration:</Typography>
                         <Typography variant="body1" fontWeight="bold">
-                          {formatDuration(session.duration)}
+                          {session.endDate 
+                            ? formatDuration(session.duration) 
+                            : (session.duration > 0 
+                              ? `${formatDuration(session.duration)} (est.)` 
+                              : "In progress")
+                          }
                         </Typography>
                       </Grid>
                     </Grid>
