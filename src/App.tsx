@@ -1,10 +1,30 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import { CssBaseline, ThemeProvider, createTheme, GlobalStyles } from '@mui/material';
 import Navigation from './components/Navigation';
 import BunkeringOperation from './pages/BunkeringOperation';
 import DailyEvents from './pages/DailyEvents';
 import DailyROB from './pages/DailyROB';
 import DPHoursPage from './pages/DPHours';
+
+// Глобальные стили для унификации отображения полей ввода даты
+const globalStyles = {
+  // Стили для изменения формата отображения полей типа date
+  'input[type="date"]::-webkit-calendar-picker-indicator': {
+    cursor: 'pointer',
+  },
+  // Стили для стандартизации плейсхолдера и формата даты
+  'input[type="date"]::before': {
+    content: 'attr(placeholder)',
+    color: '#888',
+    width: '100%',
+  },
+  'input[type="date"]:focus::before': {
+    content: '""',
+  },
+  'input[type="date"]:valid::before': {
+    content: '""',
+  }
+};
 
 const theme = createTheme({
   palette: {
@@ -16,12 +36,24 @@ const theme = createTheme({
       main: '#dc004e',
     },
   },
+  components: {
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& input[type="date"]': {
+            fontFamily: 'inherit',
+          }
+        }
+      }
+    }
+  }
 });
 
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <GlobalStyles styles={globalStyles} />
       <Router>
         <Navigation />
         <Routes>

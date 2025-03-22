@@ -36,6 +36,40 @@ interface DataTableProps {
   onDelete: (id: string) => void;
 }
 
+// Функция для форматирования даты из yyyy-mm-dd в dd.mm.yyyy
+const formatDateDisplay = (dateStr: string): string => {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split('-');
+  return `${day}.${month}.${year}`;
+};
+
+// Функция для преобразования пользовательского ввода dd.mm.yyyy в yyyy-mm-dd
+const parseUserDateInput = (value: string): string => {
+  // Проверяем, соответствует ли ввод формату dd.mm.yyyy (приоритетный формат)
+  const ddmmyyyyDotRegex = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/;
+  // Проверяем, соответствует ли ввод формату dd/mm/yyyy (для обратной совместимости)
+  const ddmmyyyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+  
+  // Сначала проверяем формат с точками
+  let match = value.match(ddmmyyyyDotRegex);
+  if (match) {
+    const [_, day, month, year] = match;
+    // Преобразуем в формат yyyy-mm-dd
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // Затем проверяем формат со слешами для обратной совместимости
+  match = value.match(ddmmyyyyRegex);
+  if (match) {
+    const [_, day, month, year] = match;
+    // Преобразуем в формат yyyy-mm-dd
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // Если не соответствует никакому формату, возвращаем как есть
+  return value;
+};
+
 const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,16 +95,22 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
   const handleChange = (columnId: string, value: string) => {
     const column = columns.find(col => col.id === columnId);
     
-    if (column?.type === 'date' && value) {
-      const parts = value.split('-');
-      if (parts[0]) {
-        // Ограничиваем год до 4 цифр
-        parts[0] = parts[0].slice(0, 4);
-        // Если год больше 9999, устанавливаем 9999
-        if (parseInt(parts[0]) > 9999) {
-          parts[0] = '9999';
+    if (column?.type === 'date') {
+      if (value) {
+        // Если пользователь ввел дату в формате dd/mm/yyyy, преобразуем в yyyy-mm-dd
+        value = parseUserDateInput(value);
+        
+        // Дополнительная проверка для формата yyyy-mm-dd
+        const parts = value.split('-');
+        if (parts[0]) {
+          // Ограничиваем год до 4 цифр
+          parts[0] = parts[0].slice(0, 4);
+          // Если год больше 9999, устанавливаем 9999
+          if (parseInt(parts[0]) > 9999) {
+            parts[0] = '9999';
+          }
+          value = parts.join('-');
         }
-        value = parts.join('-');
       }
     }
 
@@ -125,10 +165,25 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
         InputLabelProps={{
           shrink: true,
         }}
-        sx={{ mb: 2 }}
-        inputProps={{
-          max: column.type === 'date' ? '9999-12-31' : undefined
+        sx={{ 
+          mb: 2,
+          // Добавляем стили для полей ввода даты, чтобы изменить формат отображения
+          ...(column.type === 'date' && {
+            '& input::-webkit-datetime-edit': {
+              fontFamily: 'inherit',
+            },
+            '& input': {
+              '&:before': {
+                content: 'attr(placeholder)'
+              }
+            }
+          })
         }}
+        inputProps={{
+          max: column.type === 'date' ? '9999-12-31' : undefined,
+          placeholder: column.type === 'date' ? 'дд.мм.гггг' : undefined
+        }}
+        placeholder={column.type === 'date' ? 'дд.мм.гггг' : undefined}
       />
     );
   };
@@ -157,7 +212,9 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
             {data.map((row) => (
               <TableRow key={row.id}>
                 {columns.map((column) => (
-                  <TableCell key={column.id}>{row[column.id]}</TableCell>
+                  <TableCell key={column.id}>
+                    {column.type === 'date' ? formatDateDisplay(row[column.id]) : row[column.id]}
+                  </TableCell>
                 ))}
                 <TableCell>
                   <IconButton onClick={() => handleOpen(row)}>

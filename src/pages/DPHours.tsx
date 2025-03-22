@@ -59,6 +59,33 @@ const formatDate = (dateStr: string): string => {
   return `${day}.${month}.${year}`;
 };
 
+// Функция для преобразования пользовательского ввода dd.mm.yyyy в yyyy-mm-dd
+const parseUserDateInput = (value: string): string => {
+  // Проверяем, соответствует ли ввод формату dd.mm.yyyy (приоритетный формат)
+  const ddmmyyyyDotRegex = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/;
+  // Проверяем, соответствует ли ввод формату dd/mm/yyyy (для обратной совместимости)
+  const ddmmyyyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+  
+  // Сначала проверяем формат с точками
+  let match = value.match(ddmmyyyyDotRegex);
+  if (match) {
+    const [_, day, month, year] = match;
+    // Преобразуем в формат yyyy-mm-dd
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // Затем проверяем формат со слешами для обратной совместимости
+  match = value.match(ddmmyyyyRegex);
+  if (match) {
+    const [_, day, month, year] = match;
+    // Преобразуем в формат yyyy-mm-dd
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // Если не соответствует никакому формату, возвращаем как есть
+  return value;
+};
+
 const DPHoursPage = () => {
   const [data, setData] = useState<DPHours[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -146,6 +173,11 @@ const DPHoursPage = () => {
   
   // Handle changes in the new event form
   const handleNewEventChange = (field: keyof DPHours, value: string) => {
+    // Если это поле даты и пользователь ввел в формате dd/mm/yyyy
+    if (field === 'date') {
+      value = parseUserDateInput(value);
+    }
+    
     setNewEvent({
       ...newEvent,
       [field]: value
@@ -647,6 +679,9 @@ const DPHoursPage = () => {
                 onChange={(e) => handleNewEventChange('date', e.target.value)}
                 fullWidth
                 InputLabelProps={{ shrink: true }}
+                inputProps={{
+                  placeholder: "дд.мм.гггг"
+                }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -700,9 +735,15 @@ const DPHoursPage = () => {
                 label="Start Date"
                 type="date"
                 value={dateRange.start}
-                onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+                onChange={(e) => {
+                  const value = parseUserDateInput(e.target.value);
+                  setDateRange({...dateRange, start: value});
+                }}
                 fullWidth
                 InputLabelProps={{ shrink: true }}
+                inputProps={{
+                  placeholder: "дд.мм.гггг"
+                }}
               />
             </Grid>
             <Grid item xs={12} sm={5}>
@@ -710,9 +751,15 @@ const DPHoursPage = () => {
                 label="End Date"
                 type="date"
                 value={dateRange.end}
-                onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+                onChange={(e) => {
+                  const value = parseUserDateInput(e.target.value);
+                  setDateRange({...dateRange, end: value});
+                }}
                 fullWidth
                 InputLabelProps={{ shrink: true }}
+                inputProps={{
+                  placeholder: "дд.мм.гггг"
+                }}
               />
             </Grid>
             <Grid item xs={12} sm={2}>
