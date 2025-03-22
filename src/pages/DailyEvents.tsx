@@ -1,29 +1,48 @@
-import { useState, useEffect } from 'react';
-import { Container, Typography, Alert, CircularProgress, Box, Snackbar } from '@mui/material';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Container, 
+  Typography, 
+  Alert, 
+  CircularProgress, 
+  Box, 
+  Snackbar, 
+  Paper, 
+  Tabs, 
+  Tab 
+} from '@mui/material';
+import { 
+  Today as TodayIcon, 
+  Timeline as TimelineIcon 
+} from '@mui/icons-material';
 import DataTable, { Column } from '../components/DataTable';
+import SimpleDataTable from '../components/SimpleDataTable';
+import DataTableWithSearch from '../components/DataTableWithSearch';
 import { DailyEvent, OperationType } from '../types';
 import dailyEventsApi from '../api/dailyEventsApi';
+import { formatDate } from '../utils/dateUtils';
 
 const columns: Column[] = [
-  { id: 'date', label: 'Date', type: 'date' },
-  { id: 'startTime', label: 'Start Time', type: 'time' },
-  { id: 'endTime', label: 'End Time', type: 'time' },
-  { id: 'origin', label: 'Origin' },
-  { id: 'destination', label: 'Destination' },
+  { id: 'date', label: 'Date', type: 'date', searchable: true },
+  { id: 'startTime', label: 'Start Time', type: 'time', searchable: true },
+  { id: 'endTime', label: 'End Time', type: 'time', searchable: true },
+  { id: 'origin', label: 'Origin', searchable: true },
+  { id: 'destination', label: 'Destination', searchable: true },
   { 
     id: 'operationType', 
     label: 'Operation Type', 
     type: 'select',
-    options: ['In Port', 'In Transit', 'DP Operation', 'Standby'] as OperationType[]
+    options: ['In Port', 'In Transit', 'DP Operation', 'Standby'] as OperationType[],
+    searchable: true
   },
-  { id: 'consumptionME', label: 'Consumption M/E', type: 'number' },
-  { id: 'consumptionAE', label: 'Consumption A/E', type: 'number' },
+  { id: 'consumptionME', label: 'Consumption M/E', type: 'number', searchable: true },
+  { id: 'consumptionAE', label: 'Consumption A/E', type: 'number', searchable: true },
 ];
 
 const DailyEvents = () => {
   const [data, setData] = useState<DailyEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [tabValue, setTabValue] = useState<number>(0);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -33,7 +52,15 @@ const DailyEvents = () => {
     message: '',
     severity: 'info'
   });
+  
+  // Текущая дата для фильтрации в формате ISO
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
 
+  // Записи только для сегодняшнего дня
+  const todayRecords = useMemo(() => {
+    return data.filter(record => record.date === today);
+  }, [data, today]);
+  
   // Fetch data from API when component mounts
   useEffect(() => {
     fetchData();
@@ -69,6 +96,11 @@ const DailyEvents = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  // Switch between tabs
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
   const handleAdd = async (newData: DailyEvent) => {
     setLoading(true);
     try {
@@ -77,10 +109,10 @@ const DailyEvents = () => {
       
       const savedRecord = await dailyEventsApi.create(dataToSend);
       setData([...data, savedRecord]);
-      showSnackbar('Event added successfully', 'success');
+      showSnackbar('Record added successfully', 'success');
     } catch (err) {
-      console.error('Failed to add event:', err);
-      showSnackbar('Failed to add event', 'error');
+      console.error('Failed to add record:', err);
+      showSnackbar('Failed to add record', 'error');
     } finally {
       setLoading(false);
     }
@@ -93,29 +125,29 @@ const DailyEvents = () => {
       const { id: _, ...dataToSend } = updatedData;
       
       await dailyEventsApi.update(id, dataToSend);
-      setData(data.map((item: DailyEvent) => (item.id === id ? updatedData : item)));
-      showSnackbar('Event updated successfully', 'success');
+      setData(data.map((item) => (item.id === id ? updatedData : item)));
+      showSnackbar('Record updated successfully', 'success');
     } catch (err) {
-      console.error('Failed to update event:', err);
-      showSnackbar('Failed to update event', 'error');
+      console.error('Failed to update record:', err);
+      showSnackbar('Failed to update record', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this event?')) {
+    if (!window.confirm('Are you sure you want to delete this record?')) {
       return;
     }
     
     setLoading(true);
     try {
       await dailyEventsApi.delete(id);
-      setData(data.filter((item: DailyEvent) => item.id !== id));
-      showSnackbar('Event deleted successfully', 'success');
+      setData(data.filter((item) => item.id !== id));
+      showSnackbar('Record deleted successfully', 'success');
     } catch (err) {
-      console.error('Failed to delete event:', err);
-      showSnackbar('Failed to delete event', 'error');
+      console.error('Failed to delete record:', err);
+      showSnackbar('Failed to delete record', 'error');
     } finally {
       setLoading(false);
     }
@@ -141,13 +173,64 @@ const DailyEvents = () => {
         </Alert>
       )}
       
-      <DataTable
-        columns={columns}
-        data={data}
-        onAdd={handleAdd}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      {/* Tabs for switching between modes */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          indicatorColor="primary"
+          textColor="primary"
+          centered
+        >
+          <Tab icon={<TodayIcon />} label="Today" />
+          <Tab icon={<TimelineIcon />} label="History" />
+        </Tabs>
+      </Paper>
+      
+      {/* Content for "Today" tab */}
+      {tabValue === 0 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6">
+              Events for Today ({formatDate(today)})
+            </Typography>
+          </Box>
+          
+          <SimpleDataTable
+            columns={columns}
+            data={todayRecords}
+            onAdd={handleAdd}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+          
+          {todayRecords.length === 0 && !loading && (
+            <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+              No events for today
+            </Typography>
+          )}
+        </Paper>
+      )}
+      
+      {/* Content for "History" tab */}
+      {tabValue === 1 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <DataTableWithSearch
+            columns={columns}
+            data={data}
+            onAdd={handleAdd}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            title="All Events"
+          />
+          
+          {data.length === 0 && !loading && (
+            <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+              No events found
+            </Typography>
+          )}
+        </Paper>
+      )}
       
       {/* Snackbar for notifications */}
       <Snackbar 

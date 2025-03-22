@@ -19,6 +19,7 @@ import {
   InputLabel,
   TablePagination,
   Box,
+  Typography,
   InputAdornment
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
@@ -33,15 +34,16 @@ export interface Column {
   searchable?: boolean;
 }
 
-interface DataTableProps {
+interface DataTableWithSearchProps {
   columns: Column[];
   data: any[];
   onAdd: (newData: any) => void;
   onEdit: (id: string, updatedData: any) => void;
   onDelete: (id: string) => void;
+  title: string;
 }
 
-const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) => {
+const DataTableWithSearch = ({ columns, data, onAdd, onEdit, onDelete, title }: DataTableWithSearchProps) => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
@@ -219,21 +221,17 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
 
   return (
     <>
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => handleOpen()}
-        >
-          ADD NEW
-        </Button>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6">
+          {title}
+        </Typography>
         
         <TextField
           placeholder="Поиск..."
           value={searchQuery}
           onChange={handleSearchChange}
           size="small"
-          sx={{ width: '300px' }}
+          sx={{ width: '250px' }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -242,6 +240,16 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
             ),
           }}
         />
+      </Box>
+      
+      <Box sx={{ mb: 2 }}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => handleOpen()}
+        >
+          ADD NEW
+        </Button>
       </Box>
       
       <TableContainer component={Paper}>
@@ -281,7 +289,9 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
             )}
           </TableBody>
         </Table>
-        
+      </TableContainer>
+      
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
@@ -293,7 +303,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
           labelRowsPerPage="на странице:"
           labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
         />
-      </TableContainer>
+      </Box>
 
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>
@@ -313,4 +323,4 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
   );
 };
 
-export default DataTable; 
+export default DataTableWithSearch; 

@@ -1,27 +1,46 @@
-import { useState, useEffect } from 'react';
-import { Container, Typography, Alert, CircularProgress, Box, Snackbar } from '@mui/material';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Container, 
+  Typography, 
+  Alert, 
+  CircularProgress, 
+  Box, 
+  Snackbar, 
+  Paper, 
+  Tabs, 
+  Tab 
+} from '@mui/material';
+import { 
+  Today as TodayIcon, 
+  Timeline as TimelineIcon 
+} from '@mui/icons-material';
 import DataTable, { Column } from '../components/DataTable';
+import SimpleDataTable from '../components/SimpleDataTable';
+import DataTableWithSearch from '../components/DataTableWithSearch';
 import { BunkeringOperation as BunkeringOperationType, FuelType } from '../types';
 import bunkeringOperationsApi from '../api/bunkeringOperationsApi';
+import { formatDate } from '../utils/dateUtils';
 
 const columns: Column[] = [
-  { id: 'date', label: 'Date', type: 'date' },
+  { id: 'date', label: 'Date', type: 'date', searchable: true },
   { 
     id: 'fuelType', 
     label: 'Fuel Type', 
     type: 'select',
-    options: ['ULSD', 'Change XL', 'Other'] as FuelType[]
+    options: ['ULSD', 'Change XL', 'Other'] as FuelType[],
+    searchable: true
   },
-  { id: 'density', label: 'Density', type: 'number' },
-  { id: 'timeStart', label: 'Time Start', type: 'time' },
-  { id: 'timeStop', label: 'Time Stop', type: 'time' },
-  { id: 'received', label: 'Received', type: 'number' },
+  { id: 'density', label: 'Density', type: 'number', searchable: true },
+  { id: 'timeStart', label: 'Time Start', type: 'time', searchable: true },
+  { id: 'timeStop', label: 'Time Stop', type: 'time', searchable: true },
+  { id: 'received', label: 'Received', type: 'number', searchable: true },
 ];
 
 const BunkeringOperation = () => {
   const [data, setData] = useState<BunkeringOperationType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [tabValue, setTabValue] = useState<number>(0);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -31,7 +50,15 @@ const BunkeringOperation = () => {
     message: '',
     severity: 'info'
   });
+  
+  // Текущая дата для фильтрации в формате ISO
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
 
+  // Записи только для сегодняшнего дня
+  const todayRecords = useMemo(() => {
+    return data.filter(record => record.date === today);
+  }, [data, today]);
+  
   // Fetch data from API when component mounts
   useEffect(() => {
     fetchData();
@@ -65,6 +92,11 @@ const BunkeringOperation = () => {
   // Handle snackbar close
   const handleSnackbarClose = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  // Switch between tabs
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
   };
 
   const handleAdd = async (newData: BunkeringOperationType) => {
@@ -139,13 +171,64 @@ const BunkeringOperation = () => {
         </Alert>
       )}
       
-      <DataTable
-        columns={columns}
-        data={data}
-        onAdd={handleAdd}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      {/* Tabs for switching between modes */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          indicatorColor="primary"
+          textColor="primary"
+          centered
+        >
+          <Tab icon={<TodayIcon />} label="Today" />
+          <Tab icon={<TimelineIcon />} label="History" />
+        </Tabs>
+      </Paper>
+      
+      {/* Content for "Today" tab */}
+      {tabValue === 0 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6">
+              Operations for Today ({formatDate(today)})
+            </Typography>
+          </Box>
+          
+          <SimpleDataTable
+            columns={columns}
+            data={todayRecords}
+            onAdd={handleAdd}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+          
+          {todayRecords.length === 0 && !loading && (
+            <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+              No operations for today
+            </Typography>
+          )}
+        </Paper>
+      )}
+      
+      {/* Content for "History" tab */}
+      {tabValue === 1 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <DataTableWithSearch
+            columns={columns}
+            data={data}
+            onAdd={handleAdd}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            title="All Operations"
+          />
+          
+          {data.length === 0 && !loading && (
+            <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+              No operations found
+            </Typography>
+          )}
+        </Paper>
+      )}
       
       {/* Snackbar for notifications */}
       <Snackbar 

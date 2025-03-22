@@ -6,7 +6,8 @@ import {
   Dialog, DialogTitle, DialogContent, 
   DialogActions, FormControl, InputLabel, Select, 
   MenuItem, Divider, Grid,
-  Collapse, FormControlLabel, Snackbar, Alert, CircularProgress
+  Collapse, FormControlLabel, Snackbar, Alert, CircularProgress,
+  TablePagination, InputAdornment, Pagination
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -16,9 +17,11 @@ import {
   Add as AddIcon,
   ExpandMore as ExpandMoreIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
-  KeyboardArrowUp as KeyboardArrowUpIcon
+  KeyboardArrowUp as KeyboardArrowUpIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import dphoursApi, { DPHours as APIDPHours } from '../api/dphoursApi';
+import { formatDate, parseUserDateInput } from '../utils/dateUtils';
 
 // Define operation type
 type OperationType = 'DP Setup' | 'Moving in' | 'Handling Offshore' | 'Pulling Out' | 'DP OFF';
@@ -50,40 +53,6 @@ const operationColors: Record<OperationType, string> = {
   'Handling Offshore': '#ff9800', // orange
   'Pulling Out': '#9c27b0',   // purple 
   'DP OFF': '#f44336'         // red
-};
-
-// Функция для форматирования даты из yyyy-mm-dd в dd.mm.yyyy
-const formatDate = (dateStr: string): string => {
-  if (!dateStr) return "";
-  const [year, month, day] = dateStr.split('-');
-  return `${day}.${month}.${year}`;
-};
-
-// Функция для преобразования пользовательского ввода dd.mm.yyyy в yyyy-mm-dd
-const parseUserDateInput = (value: string): string => {
-  // Проверяем, соответствует ли ввод формату dd.mm.yyyy (приоритетный формат)
-  const ddmmyyyyDotRegex = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/;
-  // Проверяем, соответствует ли ввод формату dd/mm/yyyy (для обратной совместимости)
-  const ddmmyyyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-  
-  // Сначала проверяем формат с точками
-  let match = value.match(ddmmyyyyDotRegex);
-  if (match) {
-    const [_, day, month, year] = match;
-    // Преобразуем в формат yyyy-mm-dd
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-  
-  // Затем проверяем формат со слешами для обратной совместимости
-  match = value.match(ddmmyyyyRegex);
-  if (match) {
-    const [_, day, month, year] = match;
-    // Преобразуем в формат yyyy-mm-dd
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-  
-  // Если не соответствует никакому формату, возвращаем как есть
-  return value;
 };
 
 const DPHoursPage = () => {
@@ -126,6 +95,13 @@ const DPHoursPage = () => {
     location: '',
     operationType: 'DP Setup'
   });
+  
+  // Поиск
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Пагинация для истории событий
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyRowsPerPage, setHistoryRowsPerPage] = useState(10);
   
   // Fetch data from API when component mounts
   useEffect(() => {
@@ -524,6 +500,66 @@ const DPHoursPage = () => {
     }
   };
 
+  // Обработчик поиска
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(event.target.value);
+    // При изменении поиска сбрасываем на первую страницу
+    setHistoryPage(1);
+  };
+  
+  // Обработчики пагинации
+  const handleHistoryPageChange = (event: unknown, newPage: number) => {
+    setHistoryPage(newPage + 1);
+  };
+
+  const handleHistoryRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setHistoryRowsPerPage(parseInt(event.target.value, 10));
+    setHistoryPage(1);
+  };
+  
+  // Отфильтрованные даты с событиями на основе поискового запроса
+  const filteredDatesWithEvents = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return datesWithEvents;
+    }
+    
+    const query = searchQuery.toLowerCase();
+    
+    // Оставляем только те даты, у которых есть события, соответствующие поисковому запросу
+    return datesWithEvents.filter(date => {
+      const events = getEventsForDate(date);
+      return events.some(event => 
+        event.time.toLowerCase().includes(query) ||
+        event.location.toLowerCase().includes(query) ||
+        event.operationType.toLowerCase().includes(query) ||
+        formatDate(event.date).toLowerCase().includes(query)
+      );
+    });
+  }, [datesWithEvents, searchQuery, data]);
+  
+  // Пагинированные даты с событиями
+  const paginatedDatesWithEvents = useMemo(() => {
+    const startIndex = (historyPage - 1) * historyRowsPerPage;
+    return filteredDatesWithEvents.slice(startIndex, startIndex + historyRowsPerPage);
+  }, [filteredDatesWithEvents, historyPage, historyRowsPerPage]);
+  
+  // Отфильтрованные события для конкретной даты
+  const getFilteredEventsForDate = (date: string) => {
+    if (!searchQuery.trim()) {
+      return getEventsForDate(date);
+    }
+    
+    const query = searchQuery.toLowerCase();
+    const events = getEventsForDate(date);
+    
+    return events.filter(event => 
+      event.time.toLowerCase().includes(query) ||
+      event.location.toLowerCase().includes(query) ||
+      event.operationType.toLowerCase().includes(query) ||
+      formatDate(event.date).toLowerCase().includes(query)
+    );
+  };
+
   return (
     <Container sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom>
@@ -598,6 +634,20 @@ const DPHoursPage = () => {
               History
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                placeholder="Поиск..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                size="small"
+                sx={{ width: '250px' }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
               <Button 
                 variant="outlined"
                 onClick={handleOpenStats}
@@ -608,9 +658,9 @@ const DPHoursPage = () => {
           </Box>
           
           {/* Dates with expandable sections */}
-          {datesWithEvents.length > 0 ? (
+          {paginatedDatesWithEvents.length > 0 ? (
             <Box sx={{ mb: 3 }}>
-              {datesWithEvents.map(date => (
+              {paginatedDatesWithEvents.map(date => (
                 <Paper 
                   key={date} 
                   sx={{ 
@@ -635,7 +685,7 @@ const DPHoursPage = () => {
                     <Typography variant="h6">{formatDate(date)}</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Chip 
-                        label={`${getEventsForDate(date).length} events`} 
+                        label={`${getFilteredEventsForDate(date).length} events`} 
                         size="small" 
                         sx={{ mr: 1 }}
                       />
@@ -649,10 +699,10 @@ const DPHoursPage = () => {
                   <Collapse in={expandedDate === date}>
                     <Box sx={{ p: 2, bgcolor: 'background.paper' }}>
                       <Timeline 
-                        events={getEventsForDate(date)} 
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+                        events={getFilteredEventsForDate(date)} 
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
                     </Box>
                   </Collapse>
                 </Paper>
@@ -660,8 +710,25 @@ const DPHoursPage = () => {
             </Box>
           ) : (
             <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
-              No records found
+              {searchQuery ? 'Нет результатов по вашему запросу' : 'No records found'}
             </Typography>
+          )}
+          
+          {/* Пагинация для истории */}
+          {filteredDatesWithEvents.length > 0 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <TablePagination
+                component="div"
+                count={filteredDatesWithEvents.length}
+                page={historyPage - 1}
+                onPageChange={handleHistoryPageChange}
+                rowsPerPage={historyRowsPerPage}
+                onRowsPerPageChange={handleHistoryRowsPerPageChange}
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                labelRowsPerPage="на странице:"
+                labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
+              />
+            </Box>
           )}
         </Paper>
       )}

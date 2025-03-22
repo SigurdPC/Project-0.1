@@ -1,24 +1,42 @@
-import { useState, useEffect } from 'react';
-import { Container, Typography, Alert, CircularProgress, Box, Snackbar } from '@mui/material';
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  Container, 
+  Typography, 
+  Alert, 
+  CircularProgress, 
+  Box, 
+  Snackbar, 
+  Paper, 
+  Tabs, 
+  Tab 
+} from '@mui/material';
+import { 
+  Today as TodayIcon, 
+  Timeline as TimelineIcon 
+} from '@mui/icons-material';
 import DataTable, { Column } from '../components/DataTable';
+import SimpleDataTable from '../components/SimpleDataTable';
+import DataTableWithSearch from '../components/DataTableWithSearch';
 import type { DailyROB as DailyROBType } from '../types';
 import dailyROBsApi from '../api/dailyROBsApi';
+import { formatDate } from '../utils/dateUtils';
 
 const columns: Column[] = [
-  { id: 'date', label: 'Date', type: 'date' },
-  { id: 'startTime', label: 'Start Time', type: 'time' },
-  { id: 'endTime', label: 'End Time', type: 'time' },
-  { id: 'origin', label: 'Origin' },
-  { id: 'destination', label: 'Destination' },
-  { id: 'operationType', label: 'Operation Type' },
-  { id: 'consumptionME', label: 'Consumption M/E', type: 'number' },
-  { id: 'consumptionAE', label: 'Consumption A/E', type: 'number' },
+  { id: 'date', label: 'Date', type: 'date', searchable: true },
+  { id: 'startTime', label: 'Start Time', type: 'time', searchable: true },
+  { id: 'endTime', label: 'End Time', type: 'time', searchable: true },
+  { id: 'origin', label: 'Origin', searchable: true },
+  { id: 'destination', label: 'Destination', searchable: true },
+  { id: 'operationType', label: 'Operation Type', searchable: true },
+  { id: 'consumptionME', label: 'Consumption M/E', type: 'number', searchable: true },
+  { id: 'consumptionAE', label: 'Consumption A/E', type: 'number', searchable: true },
 ];
 
 const DailyROB = () => {
   const [data, setData] = useState<DailyROBType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [tabValue, setTabValue] = useState<number>(0);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -28,7 +46,15 @@ const DailyROB = () => {
     message: '',
     severity: 'info'
   });
+  
+  // Текущая дата для фильтрации в формате ISO
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
 
+  // Записи только для сегодняшнего дня
+  const todayRecords = useMemo(() => {
+    return data.filter(record => record.date === today);
+  }, [data, today]);
+  
   // Fetch data from API when component mounts
   useEffect(() => {
     fetchData();
@@ -62,6 +88,11 @@ const DailyROB = () => {
   // Handle snackbar close
   const handleSnackbarClose = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  // Switch between tabs
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
   };
 
   const handleAdd = async (newData: DailyROBType) => {
@@ -136,13 +167,64 @@ const DailyROB = () => {
         </Alert>
       )}
       
-      <DataTable
-        columns={columns}
-        data={data}
-        onAdd={handleAdd}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      {/* Tabs for switching between modes */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          indicatorColor="primary"
+          textColor="primary"
+          centered
+        >
+          <Tab icon={<TodayIcon />} label="Today" />
+          <Tab icon={<TimelineIcon />} label="History" />
+        </Tabs>
+      </Paper>
+      
+      {/* Content for "Today" tab */}
+      {tabValue === 0 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6">
+              Records for Today ({formatDate(today)})
+            </Typography>
+          </Box>
+          
+          <SimpleDataTable
+            columns={columns}
+            data={todayRecords}
+            onAdd={handleAdd}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+          
+          {todayRecords.length === 0 && !loading && (
+            <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+              No records for today
+            </Typography>
+          )}
+        </Paper>
+      )}
+      
+      {/* Content for "History" tab */}
+      {tabValue === 1 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <DataTableWithSearch
+            columns={columns}
+            data={data}
+            onAdd={handleAdd}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            title="All Records"
+          />
+          
+          {data.length === 0 && !loading && (
+            <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+              No records found
+            </Typography>
+          )}
+        </Paper>
+      )}
       
       {/* Snackbar for notifications */}
       <Snackbar 

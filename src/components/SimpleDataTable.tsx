@@ -17,12 +17,10 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  TablePagination,
-  Box,
-  InputAdornment
+  Box
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
-import { useState, useEffect, useMemo } from 'react';
+import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { useState } from 'react';
 import { formatDate as formatDateDisplay, parseUserDateInput } from '../utils/dateUtils';
 
 export interface Column {
@@ -33,7 +31,7 @@ export interface Column {
   searchable?: boolean;
 }
 
-interface DataTableProps {
+interface SimpleDataTableProps {
   columns: Column[];
   data: any[];
   onAdd: (newData: any) => void;
@@ -41,53 +39,10 @@ interface DataTableProps {
   onDelete: (id: string) => void;
 }
 
-const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) => {
+const SimpleDataTable = ({ columns, data, onAdd, onEdit, onDelete }: SimpleDataTableProps) => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
-  
-  // Пагинация
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  
-  // Поиск
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // Фильтрованные данные после применения поискового запроса
-  const filteredData = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return data;
-    }
-    
-    const query = searchQuery.toLowerCase();
-    return data.filter(row => {
-      return columns.some(column => {
-        // Пропускаем, если колонка не предназначена для поиска или значение не задано
-        if (!column.searchable || !row[column.id]) return false;
-        
-        const value = String(row[column.id]).toLowerCase();
-        
-        // Для дат сначала форматируем в пользовательский формат
-        if (column.type === 'date') {
-          const formattedDate = formatDateDisplay(row[column.id]);
-          return formattedDate.toLowerCase().includes(query);
-        }
-        
-        // Для остальных типов просто ищем подстроку
-        return value.includes(query);
-      });
-    });
-  }, [data, searchQuery, columns]);
-  
-  // Текущая страница данных с учетом пагинации
-  const paginatedData = useMemo(() => {
-    return filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  }, [filteredData, page, rowsPerPage]);
-  
-  // Сброс страницы при изменении фильтра или данных
-  useEffect(() => {
-    setPage(0);
-  }, [searchQuery, data]);
 
   const handleOpen = (row?: any) => {
     if (row) {
@@ -138,21 +93,6 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
       onAdd({ ...formData, id: Date.now().toString() });
     }
     handleClose();
-  };
-  
-  // Обработчики пагинации
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-  
-  // Обработчик поиска
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value);
   };
 
   const renderFormField = (column: Column) => {
@@ -219,29 +159,14 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
 
   return (
     <>
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ mb: 2 }}>
         <Button
           variant="contained"
           color="primary"
           onClick={() => handleOpen()}
         >
-          ADD NEW
+          Add New
         </Button>
-        
-        <TextField
-          placeholder="Поиск..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          size="small"
-          sx={{ width: '300px' }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
       </Box>
       
       <TableContainer component={Paper}>
@@ -255,7 +180,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginatedData.map((row) => (
+            {data.map((row) => (
               <TableRow key={row.id}>
                 {columns.map((column) => (
                   <TableCell key={column.id}>
@@ -272,27 +197,15 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
                 </TableCell>
               </TableRow>
             ))}
-            {paginatedData.length === 0 && (
+            {data.length === 0 && (
               <TableRow>
                 <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 3 }}>
-                  {searchQuery ? 'Нет результатов по вашему запросу' : 'Нет данных'}
+                  Нет данных
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-        
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          component="div"
-          count={filteredData.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="на странице:"
-          labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
-        />
       </TableContainer>
 
       <Dialog open={open} onClose={handleClose}>
@@ -313,4 +226,4 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
   );
 };
 
-export default DataTable; 
+export default SimpleDataTable; 
