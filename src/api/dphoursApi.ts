@@ -5,7 +5,6 @@ const API_URL = 'http://localhost:5000/api';
 
 // Define the DPHours interface to match the backend model
 export interface DPHours {
-  _id?: string;
   id?: string;
   date: string;
   time: string;
@@ -43,13 +42,13 @@ export const dphoursApi = {
   },
 
   // Create a new record
-  createRecord: async (record: Omit<DPHours, '_id' | 'id' | 'createdAt'>): Promise<DPHours> => {
+  createRecord: async (record: Omit<DPHours, 'id' | 'createdAt'>): Promise<DPHours> => {
     const response = await api.post('/dphours', record);
     return response.data;
   },
 
   // Update a record
-  updateRecord: async (id: string, record: Omit<DPHours, '_id' | 'id' | 'createdAt'>): Promise<DPHours> => {
+  updateRecord: async (id: string, record: Omit<DPHours, 'id' | 'createdAt'>): Promise<DPHours> => {
     const response = await api.put(`/dphours/${id}`, record);
     return response.data;
   },

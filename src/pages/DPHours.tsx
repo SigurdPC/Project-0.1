@@ -30,7 +30,6 @@ type OperationType = 'DP Setup' | 'Moving in' | 'Handling Offshore' | 'Pulling O
 // Define DPHours interface
 interface DPHours {
   id: string;
-  _id?: string; // MongoDB ID
   date: string;
   location: string;
   operationType: OperationType;
@@ -265,7 +264,7 @@ const DPHoursPage = () => {
       
       // Transform API data to match our component's data structure
       const transformedData = response.map(record => ({
-        id: record._id || record.id || Date.now().toString(),
+        id: record.id || Date.now().toString(),
         date: record.date,
         time: record.time,
         location: record.location,
@@ -337,7 +336,7 @@ const DPHoursPage = () => {
         operationType: newEvent.operationType as OperationType
       });
       
-      const newId = savedRecord._id || Date.now().toString();
+      const newId = savedRecord.id || Date.now().toString();
       const fullEvent: DPHours = {
         id: newId,
         date: savedRecord.date,
@@ -634,7 +633,7 @@ const DPHoursPage = () => {
       
       // Transform API data to match our component's data structure
       const transformedRecords = records.map(record => ({
-        id: record._id || record.id || Date.now().toString(),
+        id: record.id || Date.now().toString(),
         date: record.date,
         time: record.time,
         location: record.location,
@@ -893,7 +892,7 @@ const DPHoursPage = () => {
           operationType: op.operationType
         });
         
-        const newId = savedRecord._id || Date.now().toString();
+        const newId = savedRecord.id || Date.now().toString();
         const fullEvent: DPHours = {
           id: newId,
           date: savedRecord.date,
