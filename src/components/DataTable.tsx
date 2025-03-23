@@ -19,7 +19,9 @@ import {
   InputLabel,
   TablePagination,
   Box,
-  InputAdornment
+  InputAdornment,
+  Typography,
+  CircularProgress
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
 import { useState, useEffect, useMemo } from 'react';
@@ -45,6 +47,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
+  const [loading, setLoading] = useState(false);
   
   // Пагинация
   const [page, setPage] = useState(0);
@@ -92,7 +95,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
   const handleOpen = (row?: any) => {
     if (row) {
       setEditingId(row.id);
-      setFormData(row);
+      setFormData({ ...row });
     } else {
       setEditingId(null);
       setFormData({});
@@ -131,13 +134,20 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
     setFormData((prev: Record<string, any>) => ({ ...prev, [columnId]: value }));
   };
 
-  const handleSubmit = () => {
-    if (editingId) {
-      onEdit(editingId, formData);
-    } else {
-      onAdd({ ...formData, id: Date.now().toString() });
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      if (editingId) {
+        await onEdit(editingId, formData);
+      } else {
+        await onAdd({ ...formData, id: Date.now().toString() });
+      }
+      handleClose();
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    } finally {
+      setLoading(false);
     }
-    handleClose();
   };
   
   // Обработчики пагинации
@@ -251,61 +261,69 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
               {columns.map((column) => (
                 <TableCell key={column.id}>{column.label}</TableCell>
               ))}
-              <TableCell>Actions</TableCell>
+              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginatedData.map((row) => (
-              <TableRow key={row.id}>
-                {columns.map((column) => (
-                  <TableCell key={column.id}>
-                    {column.type === 'date' ? formatDateDisplay(row[column.id]) : row[column.id]}
+            {paginatedData.length > 0 ? (
+              paginatedData.map((row) => (
+                <TableRow key={row.id}>
+                  {columns.map((column) => (
+                    <TableCell key={`${row.id}-${column.id}`}>
+                      {column.type === 'date' && row[column.id]
+                        ? formatDateDisplay(row[column.id])
+                        : row[column.id]}
+                    </TableCell>
+                  ))}
+                  <TableCell align="right">
+                    <IconButton onClick={() => handleOpen(row)} size="small">
+                      <EditIcon fontSize="small" />
+                    </IconButton>
                   </TableCell>
-                ))}
-                <TableCell>
-                  <IconButton onClick={() => handleOpen(row)}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={() => onDelete(row.id)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-            {paginatedData.length === 0 && (
+                </TableRow>
+              ))
+            ) : (
               <TableRow>
-                <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 3 }}>
-                  {searchQuery ? 'Нет результатов по вашему запросу' : 'Нет данных'}
+                <TableCell colSpan={columns.length + 1} align="center">
+                  {searchQuery ? 'No results found' : 'No data available'}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-        
+      </TableContainer>
+      
+      {filteredData.length > 0 && (
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50]}
+          rowsPerPageOptions={[5, 10, 25]}
           component="div"
           count={filteredData.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="на странице:"
-          labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
         />
-      </TableContainer>
+      )}
 
-      <Dialog open={open} onClose={handleClose}>
+      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle>
           {editingId ? 'Edit Record' : 'Add New Record'}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
+          <Typography variant="subtitle2" gutterBottom>
+            Please fill all required fields:
+          </Typography>
           {columns.map((column) => renderFormField(column))}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary">
-            {editingId ? 'Save' : 'Add'}
+          <Button 
+            onClick={handleSubmit} 
+            color="primary" 
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : (editingId ? 'Save' : 'Add')}
           </Button>
         </DialogActions>
       </Dialog>

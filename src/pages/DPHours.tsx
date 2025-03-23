@@ -18,7 +18,8 @@ import {
   ExpandMore as ExpandMoreIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  DeleteForever as DeleteForeverIcon
 } from '@mui/icons-material';
 import dphoursApi, { DPHours as APIDPHours } from '../api/dphoursApi';
 import { formatDate, parseUserDateInput } from '../utils/dateUtils';
@@ -53,6 +54,133 @@ const operationColors: Record<OperationType, string> = {
   'Handling Offshore': '#ff9800', // orange
   'Pulling Out': '#9c27b0',   // purple 
   'DP OFF': '#f44336'         // red
+};
+
+// Определение типа TimelineProps
+interface TimelineProps {
+  events: DPHours[];
+  onEdit: (id: string, updatedData: DPHours) => void;
+  onDelete?: (id: string) => void;
+}
+
+// Компонент Timeline для отображения событий 
+const Timeline = ({ events, onEdit, onDelete }: TimelineProps) => {
+  const [editingLocation, setEditingLocation] = useState<string | null>(null);
+  
+  // Группировка событий по локациям
+  const eventsByLocation = useMemo(() => {
+    const grouped: Record<string, DPHours[]> = {};
+    
+    events.forEach((event: DPHours) => {
+      if (!grouped[event.location]) {
+        grouped[event.location] = [];
+      }
+      grouped[event.location].push(event);
+    });
+    
+    // Сортировка событий внутри каждой локации по времени
+    Object.keys(grouped).forEach(location => {
+      grouped[location].sort((a, b) => a.time.localeCompare(b.time));
+    });
+    
+    return grouped;
+  }, [events]);
+  
+  const handleEditLocationClick = (location: string, locationEvents: DPHours[]) => {
+    // Вызываем обработчик редактирования локации
+    if (typeof onEdit === 'function') {
+      onEdit(locationEvents[0].id, {
+        ...locationEvents[0],
+        location: location
+      });
+    }
+  };
+  
+  const handleDeleteLocationClick = (locationEvents: DPHours[]) => {
+    // Проверяем, что onDelete существует и запрашиваем подтверждение
+    if (typeof onDelete === 'function' && window.confirm(`Вы уверены, что хотите удалить все операции для локации "${locationEvents[0].location}"?`)) {
+      // Удаляем первую запись (обработчик сам обновит UI)
+      onDelete(locationEvents[0].id);
+    }
+  };
+  
+  // Если нет событий, возвращаем пустой компонент
+  if (Object.keys(eventsByLocation).length === 0) {
+    return null;
+  }
+  
+  return (
+    <Box>
+      {Object.entries(eventsByLocation).map(([location, locationEvents], locationIndex) => (
+        <Paper key={location} sx={{ mb: 3, overflow: 'hidden' }}>
+          <Box sx={{ 
+            p: 2, 
+            bgcolor: 'primary.main', 
+            color: 'white',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <Typography variant="subtitle1" fontWeight="bold">
+              Location: {location}
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Typography variant="subtitle1" sx={{ mr: 1 }}>
+                {locationEvents.length} operations
+              </Typography>
+              <IconButton 
+                size="small" 
+                onClick={() => handleEditLocationClick(location, locationEvents)}
+                sx={{ color: 'white', mr: 0.5 }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton 
+                size="small" 
+                onClick={() => handleDeleteLocationClick(locationEvents)}
+                sx={{ color: 'white' }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+          
+          <List sx={{ width: '100%' }}>
+            {locationEvents.map((event, index) => (
+              <React.Fragment key={event.id}>
+                {index > 0 && <Divider component="li" />}
+                <ListItem 
+                  sx={{ 
+                    py: 2,
+                    borderLeft: `4px solid ${operationColors[event.operationType]}`,
+                    pl: 3
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
+                          {event.time}
+                        </Typography>
+                        <Chip 
+                          label={event.operationType}
+                          size="small"
+                          sx={{ 
+                            backgroundColor: operationColors[event.operationType],
+                            color: 'white'
+                          }}
+                        />
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              </React.Fragment>
+            ))}
+          </List>
+        </Paper>
+      ))}
+    </Box>
+  );
 };
 
 const DPHoursPage = () => {
@@ -96,6 +224,19 @@ const DPHoursPage = () => {
     operationType: 'DP Setup'
   });
   
+  // Новый стейт для комплексного добавления событий
+  const [complexAdd, setComplexAdd] = useState<{
+    open: boolean;
+    date: string;
+    location: string;
+    operations: {id: string; time: string; operationType: OperationType}[];
+  }>({
+    open: false,
+    date: new Date().toISOString().split('T')[0],
+    location: '',
+    operations: []
+  });
+  
   // Поиск
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -103,18 +244,27 @@ const DPHoursPage = () => {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyRowsPerPage, setHistoryRowsPerPage] = useState(10);
   
-  // Fetch data from API when component mounts
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // История: открытие диалога редактирования локации
+  const [isLocationEditDialogOpen, setIsLocationEditDialogOpen] = useState<boolean>(false);
+  const [locationEditData, setLocationEditData] = useState<{
+    date: string;
+    oldLocation: string;
+    newLocation: string;
+    events: DPHours[];
+  } | null>(null);
   
-  // Function to fetch all records from API
+  // Добавляем диалог редактирования отдельной записи
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+  const [editFormData, setEditFormData] = useState<DPHours | null>(null);
+  
+  // Fetch data from the API
   const fetchData = async () => {
     setLoading(true);
     try {
-      const records = await dphoursApi.getAllRecords();
+      const response = await dphoursApi.getAllRecords();
+      
       // Transform API data to match our component's data structure
-      const transformedRecords = records.map(record => ({
+      const transformedData = response.map(record => ({
         id: record._id || record.id || Date.now().toString(),
         date: record.date,
         time: record.time,
@@ -122,16 +272,27 @@ const DPHoursPage = () => {
         operationType: record.operationType
       }));
       
-      setData(transformedRecords);
-      setError(null);
+      // Sort by date (descending) and time (ascending)
+      transformedData.sort((a, b) => {
+        if (a.date !== b.date) {
+          return new Date(b.date).getTime() - new Date(a.date).getTime(); // Descending by date
+        }
+        return a.time.localeCompare(b.time); // Ascending by time
+      });
+      
+      setData(transformedData);
     } catch (err) {
       console.error('Failed to fetch data:', err);
       setError('Failed to load data. Please try again later.');
-      showSnackbar('Failed to load data', 'error');
     } finally {
       setLoading(false);
     }
   };
+  
+  // Fetch data from API when component mounts
+  useEffect(() => {
+    fetchData();
+  }, []);
   
   // Function to show snackbar notification
   const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' | 'warning') => {
@@ -517,6 +678,92 @@ const DPHoursPage = () => {
     setHistoryPage(1);
   };
   
+  // Сгруппированные события по локациям для конкретной даты
+  const getGroupedEventsForDate = (date: string) => {
+    const events = getEventsForDate(date);
+    const grouped: Record<string, DPHours[]> = {};
+    
+    events.forEach(event => {
+      if (!grouped[event.location]) {
+        grouped[event.location] = [];
+      }
+      grouped[event.location].push(event);
+    });
+    
+    // Сортировка событий внутри каждой локации по времени
+    Object.keys(grouped).forEach(location => {
+      grouped[location].sort((a, b) => a.time.localeCompare(b.time));
+    });
+    
+    return grouped;
+  };
+  
+  // Отфильтрованные события для конкретной даты
+  const getFilteredEventsForDate = (date: string) => {
+    if (!searchQuery.trim()) {
+      return getEventsForDate(date);
+    }
+    
+    const query = searchQuery.toLowerCase();
+    const events = getEventsForDate(date);
+    
+    return events.filter(event => 
+      event.time.toLowerCase().includes(query) ||
+      event.location.toLowerCase().includes(query) ||
+      event.operationType.toLowerCase().includes(query) ||
+      formatDate(event.date).toLowerCase().includes(query)
+    );
+  };
+  
+  // Отфильтрованные локации для конкретной даты
+  const getFilteredLocationsForDate = (date: string) => {
+    if (!searchQuery.trim()) {
+      return Object.keys(getGroupedEventsForDate(date));
+    }
+    
+    const query = searchQuery.toLowerCase();
+    const groupedEvents = getGroupedEventsForDate(date);
+    
+    const filteredLocations: string[] = [];
+    
+    Object.entries(groupedEvents).forEach(([location, events]) => {
+      // Проверяем, содержит ли локация искомую строку
+      if (location.toLowerCase().includes(query)) {
+        filteredLocations.push(location);
+        return;
+      }
+      
+      // Проверяем, содержит ли хотя бы одно событие искомую строку
+      const hasMatchingEvent = events.some(event => 
+        event.time.toLowerCase().includes(query) ||
+        event.operationType.toLowerCase().includes(query) ||
+        formatDate(event.date).toLowerCase().includes(query)
+      );
+      
+      if (hasMatchingEvent) {
+        filteredLocations.push(location);
+      }
+    });
+    
+    return filteredLocations;
+  };
+  
+  // Получение отфильтрованных событий для локации
+  const getFilteredEventsForLocation = (date: string, location: string) => {
+    if (!searchQuery.trim()) {
+      return getGroupedEventsForDate(date)[location] || [];
+    }
+    
+    const query = searchQuery.toLowerCase();
+    const events = getGroupedEventsForDate(date)[location] || [];
+    
+    return events.filter(event => 
+      event.time.toLowerCase().includes(query) ||
+      event.operationType.toLowerCase().includes(query) ||
+      formatDate(event.date).toLowerCase().includes(query)
+    );
+  };
+  
   // Отфильтрованные даты с событиями на основе поискового запроса
   const filteredDatesWithEvents = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -543,21 +790,461 @@ const DPHoursPage = () => {
     return filteredDatesWithEvents.slice(startIndex, startIndex + historyRowsPerPage);
   }, [filteredDatesWithEvents, historyPage, historyRowsPerPage]);
   
-  // Отфильтрованные события для конкретной даты
-  const getFilteredEventsForDate = (date: string) => {
-    if (!searchQuery.trim()) {
-      return getEventsForDate(date);
+  // Открытие диалога комплексного добавления
+  const handleOpenComplexAdd = () => {
+    setComplexAdd({
+      open: true,
+      date: new Date().toISOString().split('T')[0],
+      location: '',
+      operations: [{
+        id: Date.now().toString(),
+        time: '',
+        operationType: 'DP Setup'
+      }]
+    });
+  };
+  
+  // Закрытие диалога комплексного добавления
+  const handleCloseComplexAdd = () => {
+    setComplexAdd({
+      ...complexAdd,
+      open: false
+    });
+  };
+  
+  // Изменение даты или локации в комплексном добавлении
+  const handleComplexAddBaseChange = (field: 'date' | 'location', value: string) => {
+    if (field === 'date') {
+      value = parseUserDateInput(value);
     }
     
-    const query = searchQuery.toLowerCase();
-    const events = getEventsForDate(date);
+    setComplexAdd({
+      ...complexAdd,
+      [field]: value
+    });
+  };
+  
+  // Добавление новой операции в комплексном добавлении
+  const handleAddOperation = () => {
+    setComplexAdd({
+      ...complexAdd,
+      operations: [
+        ...complexAdd.operations,
+        {
+          id: Date.now().toString(),
+          time: '',
+          operationType: 'DP Setup'
+        }
+      ]
+    });
+  };
+  
+  // Изменение операции в комплексном добавлении
+  const handleOperationChange = (id: string, field: 'time' | 'operationType', value: string) => {
+    setComplexAdd({
+      ...complexAdd,
+      operations: complexAdd.operations.map(op => 
+        op.id === id ? { ...op, [field]: value } : op
+      )
+    });
+  };
+  
+  // Удаление операции в комплексном добавлении
+  const handleRemoveOperation = (id: string) => {
+    // Не удаляем, если осталась только одна операция
+    if (complexAdd.operations.length <= 1) return;
     
-    return events.filter(event => 
-      event.time.toLowerCase().includes(query) ||
-      event.location.toLowerCase().includes(query) ||
-      event.operationType.toLowerCase().includes(query) ||
-      formatDate(event.date).toLowerCase().includes(query)
+    setComplexAdd({
+      ...complexAdd,
+      operations: complexAdd.operations.filter(op => op.id !== id)
+    });
+  };
+  
+  // Сохранение всех операций из комплексного добавления
+  const handleSaveComplexAdd = async () => {
+    // Проверка заполнения всех полей
+    if (!complexAdd.date || !complexAdd.location) {
+      showSnackbar('Пожалуйста, введите дату и локацию', 'warning');
+      return;
+    }
+    
+    // Проверка, что все операции имеют время
+    if (complexAdd.operations.some(op => !op.time)) {
+      showSnackbar('Пожалуйста, введите время для всех операций', 'warning');
+      return;
+    }
+    
+    // Сортировка операций по времени
+    const sortedOperations = [...complexAdd.operations].sort((a, b) => 
+      a.time.localeCompare(b.time)
     );
+    
+    setLoading(true);
+    
+    try {
+      const newEvents: DPHours[] = [];
+      
+      // Создаем и сохраняем каждую операцию
+      for (const op of sortedOperations) {
+        const savedRecord = await dphoursApi.createRecord({
+          date: complexAdd.date,
+          time: op.time,
+          location: complexAdd.location,
+          operationType: op.operationType
+        });
+        
+        const newId = savedRecord._id || Date.now().toString();
+        const fullEvent: DPHours = {
+          id: newId,
+          date: savedRecord.date,
+          time: savedRecord.time,
+          location: savedRecord.location,
+          operationType: savedRecord.operationType
+        };
+        
+        newEvents.push(fullEvent);
+      }
+      
+      // Обновляем данные и закрываем диалог
+      setData([...data, ...newEvents]);
+      setComplexAdd({
+        ...complexAdd,
+        open: false
+      });
+      
+      showSnackbar(`Добавлено ${newEvents.length} событий`, 'success');
+    } catch (err) {
+      console.error('Failed to add events:', err);
+      showSnackbar('Не удалось добавить события', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // История: обработчик редактирования локации
+  const handleEditLocation = (date: string, location: string, events: DPHours[]) => {
+    setIsLocationEditDialogOpen(true);
+    setLocationEditData({
+      date,
+      oldLocation: location,
+      newLocation: location,
+      events
+    });
+  };
+  
+  // История: отмена редактирования локации
+  const handleCancelLocationEdit = () => {
+    setIsLocationEditDialogOpen(false);
+    setLocationEditData(null);
+  };
+  
+  // История: изменение названия локации
+  const handleLocationNameChange = (value: string) => {
+    if (locationEditData) {
+      setLocationEditData({
+        ...locationEditData,
+        newLocation: value
+      });
+    }
+  };
+
+  // История: изменение даты для всех операций
+  const handleLocationDateChange = (value: string) => {
+    if (locationEditData) {
+      // Конвертируем дату в правильный формат
+      const formattedDate = parseUserDateInput(value);
+      
+      // Создаем копию событий с обновленной датой
+      const updatedEvents = locationEditData.events.map(event => ({
+        ...event,
+        date: formattedDate
+      }));
+      
+      setLocationEditData({
+        ...locationEditData,
+        date: formattedDate,
+        events: updatedEvents
+      });
+    }
+  };
+
+  // История: изменение данных операции в диалоге редактирования локации
+  const handleLocationOperationChange = (index: number, field: keyof DPHours, value: any) => {
+    if (locationEditData) {
+      const updatedEvents = [...locationEditData.events];
+      updatedEvents[index] = {
+        ...updatedEvents[index],
+        [field]: value
+      };
+      setLocationEditData({
+        ...locationEditData,
+        events: updatedEvents
+      });
+    }
+  };
+
+  // История: удаление всех операций локации
+  const handleDeleteLocationEvents = async () => {
+    if (!locationEditData || !window.confirm(`Вы уверены, что хотите удалить все операции для локации "${locationEditData.newLocation}"?`)) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Удаляем каждое событие
+      for (const event of locationEditData.events) {
+        await dphoursApi.deleteRecord(event.id);
+      }
+      
+      // Обновляем данные на клиенте
+      setData(prev => prev.filter(item => 
+        !locationEditData.events.some(e => e.id === item.id)
+      ));
+      
+      setIsLocationEditDialogOpen(false);
+      setLocationEditData(null);
+      showSnackbar('Локация успешно удалена', 'success');
+    } catch (error) {
+      console.error('Failed to delete location:', error);
+      showSnackbar('Не удалось удалить локацию', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // История: сохранение изменений локации
+  const handleSaveLocationEdit = async () => {
+    if (!locationEditData) return;
+    
+    setLoading(true);
+    try {
+      // Обновляем каждое событие с возможно измененными данными операций
+      for (const event of locationEditData.events) {
+        await dphoursApi.updateRecord(event.id, {
+          ...event,
+          date: locationEditData.date,
+          location: locationEditData.newLocation
+        });
+      }
+      
+      // Обновляем данные на клиенте
+      setData(prev => prev.map(item => {
+        // Находим соответствующее обновленное событие
+        const updatedEvent = locationEditData.events.find(e => e.id === item.id);
+        if (updatedEvent) {
+          return { 
+            ...item, 
+            date: locationEditData.date,
+            location: locationEditData.newLocation,
+            time: updatedEvent.time,
+            operationType: updatedEvent.operationType 
+          };
+        }
+        return item;
+      }));
+      
+      setIsLocationEditDialogOpen(false);
+      setLocationEditData(null);
+      showSnackbar('Записи успешно обновлены', 'success');
+    } catch (error) {
+      console.error('Failed to update location:', error);
+      showSnackbar('Не удалось обновить записи', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Основной компонент: обработчик редактирования записи
+  const handleEditOperation = (operation: DPHours) => {
+    // Инициализируем данные для редактирования
+    setEditFormData({
+      id: operation.id,
+      date: operation.date,
+      location: operation.location,
+      time: operation.time,
+      operationType: operation.operationType
+    });
+    
+    // Открываем диалог редактирования
+    setIsEditDialogOpen(true);
+  };
+
+  // Функция получения локаций для конкретной даты
+  const getLocationsForDate = (date: string): string[] => {
+    // Фильтруем записи по дате и получаем уникальные локации
+    const locations = data
+      .filter(item => item.date === date)
+      .map(item => item.location)
+      .filter((value, index, self) => self.indexOf(value) === index); // получаем уникальные значения
+    
+    return locations;
+  };
+
+  // Функция для отображения истории по дате с добавлением кнопок редактирования
+  const renderHistoryByDate = (date: string) => {
+    const locationsForDate = getLocationsForDate(date);
+    
+    return (
+      <Box>
+        {locationsForDate.map((location: string) => (
+          <Paper key={`${date}-${location}`} sx={{ mb: 3, overflow: 'hidden' }}>
+            <Box sx={{ 
+              p: 1.5, 
+              bgcolor: 'primary.light', 
+              color: 'white',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+            >
+              <Typography variant="subtitle1" fontWeight="bold">
+                {location}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2">
+                  {getFilteredEventsForLocation(date, location).length} operations
+                </Typography>
+                <IconButton 
+                  size="small" 
+                  onClick={() => handleEditLocation(date, location, getFilteredEventsForLocation(date, location))}
+                  sx={{ color: 'white', ml: 1, mr: 0.5 }}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+                <IconButton 
+                  size="small" 
+                  onClick={() => {
+                    if (window.confirm(`Вы уверены, что хотите удалить все операции для локации "${location}"?`)) {
+                      const events = getFilteredEventsForLocation(date, location);
+                      if (events.length > 0) {
+                        handleDeleteOperation(events[0].id);
+                      }
+                    }
+                  }}
+                  sx={{ color: 'white' }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Box>
+            
+            <List sx={{ width: '100%' }}>
+              {getFilteredEventsForLocation(date, location).map((event, index) => (
+                <React.Fragment key={event.id}>
+                  {index > 0 && <Divider component="li" />}
+                  <ListItem 
+                    sx={{ 
+                      py: 1.5,
+                      borderLeft: `4px solid ${operationColors[event.operationType]}`,
+                      pl: 3
+                    }}
+                  >
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
+                            {event.time}
+                          </Typography>
+                          <Chip 
+                            label={event.operationType}
+                            size="small"
+                            sx={{ 
+                              backgroundColor: operationColors[event.operationType],
+                              color: 'white'
+                            }}
+                          />
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                </React.Fragment>
+              ))}
+            </List>
+          </Paper>
+        ))}
+      </Box>
+    );
+  };
+
+  // Обработчик сохранения изменений отдельной записи
+  const handleSaveEdit = async () => {
+    if (!editFormData?.id) return;
+    
+    setLoading(true);
+    try {
+      // Обновляем запись
+      await dphoursApi.updateRecord(editFormData.id, {
+        ...editFormData
+      });
+      
+      // Обновляем данные на клиенте
+      setData(prev => prev.map(item => 
+        item.id === editFormData.id ? editFormData : item
+      ));
+      
+      setIsEditDialogOpen(false);
+      setEditFormData(null);
+      showSnackbar('Operation updated successfully', 'success');
+    } catch (error) {
+      console.error('Failed to update operation:', error);
+      showSnackbar('Failed to update operation', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Обработчик удаления отдельной записи
+  const handleDeleteOperation = async (id: string) => {
+    setLoading(true);
+    try {
+      // Удаляем запись
+      await dphoursApi.deleteRecord(id);
+      
+      // Обновляем данные на клиенте
+      setData(prev => prev.filter(item => item.id !== id));
+      
+      showSnackbar('Operation deleted successfully', 'success');
+    } catch (error) {
+      console.error('Failed to delete operation:', error);
+      showSnackbar('Failed to delete operation', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // В диалоге редактирования локации добавим возможность удаления отдельной операции
+  const handleDeleteSingleOperation = async (id: string) => {
+    if (!window.confirm('Вы уверены, что хотите удалить эту операцию?')) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Удаляем запись
+      await dphoursApi.deleteRecord(id);
+      
+      // Обновляем данные на клиенте
+      setData(prev => prev.filter(item => item.id !== id));
+      
+      // Если это последняя операция в локации, закрываем диалог
+      if (locationEditData && locationEditData.events.length <= 1) {
+        setIsLocationEditDialogOpen(false);
+        setLocationEditData(null);
+        showSnackbar('Операция успешно удалена', 'success');
+      } else if (locationEditData) {
+        // Иначе обновляем список операций в локации
+        setLocationEditData({
+          ...locationEditData,
+          events: locationEditData.events.filter(event => event.id !== id)
+        });
+        showSnackbar('Операция успешно удалена', 'success');
+      }
+    } catch (error) {
+      console.error('Failed to delete operation:', error);
+      showSnackbar('Не удалось удалить операцию', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -604,13 +1291,7 @@ const DPHoursPage = () => {
             <Button 
               variant="contained" 
               startIcon={<AddIcon />}
-              onClick={() => {
-                setNewEvent({
-                  ...newEvent,
-                  date: new Date().toISOString().split('T')[0]
-                });
-                setIsAddDialogOpen(true);
-              }}
+              onClick={handleOpenComplexAdd}
             >
               Add Event
             </Button>
@@ -621,7 +1302,82 @@ const DPHoursPage = () => {
               No events for today
             </Typography>
           ) : (
-            <Timeline events={eventsForSelectedDate} onEdit={handleEdit} onDelete={handleDelete} />
+            <Box>
+              {Object.entries(getGroupedEventsForDate(selectedDate)).map(([location, locationEvents], locationIndex) => (
+                <Paper key={location} sx={{ mb: 3, overflow: 'hidden' }}>
+                  <Box sx={{ 
+                    p: 2, 
+                    bgcolor: 'primary.main', 
+                    color: 'white',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      Location: {location}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Typography variant="subtitle1" sx={{ mr: 1 }}>
+                        {locationEvents.length} operations
+                      </Typography>
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleEditLocation(selectedDate, location, locationEvents)}
+                        sx={{ color: 'white', mr: 0.5 }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton 
+                        size="small" 
+                        onClick={() => {
+                          if (window.confirm(`Вы уверены, что хотите удалить все операции для локации "${location}"?`)) {
+                            if (locationEvents.length > 0) {
+                              handleDeleteOperation(locationEvents[0].id);
+                            }
+                          }
+                        }}
+                        sx={{ color: 'white' }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                  
+                  <List sx={{ width: '100%' }}>
+                    {locationEvents.map((event, index) => (
+                      <React.Fragment key={event.id}>
+                        {index > 0 && <Divider component="li" />}
+                        <ListItem 
+                          sx={{ 
+                            py: 2,
+                            borderLeft: `4px solid ${operationColors[event.operationType]}`,
+                            pl: 3
+                          }}
+                        >
+                          <ListItemText
+                            primary={
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
+                                  {event.time}
+                                </Typography>
+                                <Chip 
+                                  label={event.operationType}
+                                  size="small"
+                                  sx={{ 
+                                    backgroundColor: operationColors[event.operationType],
+                                    color: 'white'
+                                  }}
+                                />
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                      </React.Fragment>
+                    ))}
+                  </List>
+                </Paper>
+              ))}
+            </Box>
           )}
         </Paper>
       )}
@@ -685,7 +1441,7 @@ const DPHoursPage = () => {
                     <Typography variant="h6">{formatDate(date)}</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Chip 
-                        label={`${getFilteredEventsForDate(date).length} events`} 
+                        label={`${getFilteredEventsForDate(date).length} events in ${getFilteredLocationsForDate(date).length} locations`}
                         size="small" 
                         sx={{ mr: 1 }}
                       />
@@ -698,11 +1454,13 @@ const DPHoursPage = () => {
                   
                   <Collapse in={expandedDate === date}>
                     <Box sx={{ p: 2, bgcolor: 'background.paper' }}>
-                      <Timeline 
-                        events={getFilteredEventsForDate(date)} 
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
+                      {getFilteredLocationsForDate(date).length === 0 ? (
+                        <Typography align="center" color="text.secondary" sx={{ py: 2 }}>
+                          {searchQuery ? 'Нет результатов по вашему запросу' : 'Нет данных для этой даты'}
+                        </Typography>
+                      ) : (
+                        renderHistoryByDate(date)
+                      )}
                     </Box>
                   </Collapse>
                 </Paper>
@@ -733,17 +1491,23 @@ const DPHoursPage = () => {
         </Paper>
       )}
       
-      {/* Dialog for adding new event */}
-      <Dialog open={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Event</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+      {/* Dialog for complex adding multiple operations */}
+      <Dialog 
+        open={complexAdd.open} 
+        onClose={handleCloseComplexAdd} 
+        maxWidth="md" 
+        fullWidth
+        scroll="paper"
+      >
+        <DialogTitle>Add Operations</DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={3} sx={{ mb: 3 }}>
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Date"
                 type="date"
-                value={newEvent.date || ''}
-                onChange={(e) => handleNewEventChange('date', e.target.value)}
+                value={complexAdd.date || ''}
+                onChange={(e) => handleComplexAddBaseChange('date', e.target.value)}
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 inputProps={{
@@ -753,28 +1517,48 @@ const DPHoursPage = () => {
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
-                label="Time"
-                type="time"
-                value={newEvent.time || ''}
-                onChange={(e) => handleNewEventChange('time', e.target.value)}
+                label="Location"
+                value={complexAdd.location || ''}
+                onChange={(e) => handleComplexAddBaseChange('location', e.target.value)}
                 fullWidth
+                placeholder="Enter location"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12}>
+          </Grid>
+          
+          <Typography variant="h6" gutterBottom>
+            Operations
+          </Typography>
+          
+          <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+            {complexAdd.operations.map((operation, index) => (
+              <Grid 
+                container 
+                spacing={2} 
+                key={operation.id}
+                sx={{ 
+                  mb: 2,
+                  pb: index < complexAdd.operations.length - 1 ? 2 : 0,
+                  borderBottom: index < complexAdd.operations.length - 1 ? '1px dashed #ccc' : 'none'
+                }}
+              >
+                <Grid item xs={12} sm={4}>
               <TextField
-                label="Location"
-                value={newEvent.location || ''}
-                onChange={(e) => handleNewEventChange('location', e.target.value)}
+                    label="Time"
+                    type="time"
+                    value={operation.time || ''}
+                    onChange={(e) => handleOperationChange(operation.id, 'time', e.target.value)}
                 fullWidth
+                    InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12}>
+                <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
                 <InputLabel>Operation Type</InputLabel>
                 <Select
-                  value={newEvent.operationType || ''}
-                  onChange={(e) => handleNewEventChange('operationType', e.target.value)}
+                      value={operation.operationType || ''}
+                      onChange={(e) => handleOperationChange(operation.id, 'operationType', e.target.value)}
                   label="Operation Type"
                 >
                   {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
@@ -783,11 +1567,49 @@ const DPHoursPage = () => {
                 </Select>
               </FormControl>
             </Grid>
+                <Grid item xs={12} sm={2}>
+                  <IconButton 
+                    color="error"
+                    onClick={() => handleRemoveOperation(operation.id)}
+                    disabled={complexAdd.operations.length <= 1}
+                    sx={{ mt: 1 }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
           </Grid>
+              </Grid>
+            ))}
+            
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <Button 
+                startIcon={<AddIcon />}
+                onClick={handleAddOperation}
+                variant="outlined"
+              >
+                Add Operation
+              </Button>
+            </Box>
+          </Paper>
+          
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Total: {complexAdd.operations.length} operations
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {complexAdd.date && formatDate(complexAdd.date)}
+            </Typography>
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddEvent} variant="contained" color="primary">Add</Button>
+          <Button onClick={handleCloseComplexAdd}>Cancel</Button>
+          <Button 
+            onClick={handleSaveComplexAdd} 
+            variant="contained" 
+            color="primary" 
+            disabled={!complexAdd.date || !complexAdd.location || complexAdd.operations.some(op => !op.time)}
+          >
+            Save All
+          </Button>
         </DialogActions>
       </Dialog>
       
@@ -972,6 +1794,208 @@ const DPHoursPage = () => {
         </DialogActions>
       </Dialog>
       
+      {/* Dialog for editing location */}
+      <Dialog
+        open={isLocationEditDialogOpen}
+        onClose={handleCancelLocationEdit}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Edit Location</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 2, mb: 3 }}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Date"
+                type="date"
+                value={locationEditData?.date || ''}
+                onChange={(e) => handleLocationDateChange(e.target.value)}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                inputProps={{
+                  placeholder: "дд.мм.гггг"
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="New Location"
+                value={locationEditData?.newLocation || ''}
+                onChange={(e) => handleLocationNameChange(e.target.value)}
+                fullWidth
+                placeholder="Enter location"
+              />
+            </Grid>
+          </Grid>
+
+          {locationEditData && locationEditData.events.length > 0 && (
+            <>
+              <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+                Operations
+              </Typography>
+              <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                {locationEditData.events.map((event, index) => (
+                  <Grid 
+                    container 
+                    spacing={2} 
+                    key={event.id}
+                    sx={{ 
+                      mb: 2,
+                      pb: 2,
+                      borderBottom: index < locationEditData.events.length - 1 ? '1px dashed #ccc' : 'none'
+                    }}
+                  >
+                    <Grid item xs={12} sm={4}>
+                      <TextField
+                        label="Time"
+                        type="time"
+                        value={event.time || ''}
+                        fullWidth
+                        InputLabelProps={{ shrink: true }}
+                        onChange={(e) => handleLocationOperationChange(index, 'time', e.target.value)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={7}>
+                      <FormControl fullWidth>
+                        <InputLabel>Operation Type</InputLabel>
+                        <Select
+                          value={event.operationType || ''}
+                          label="Operation Type"
+                          onChange={(e) => handleLocationOperationChange(index, 'operationType', e.target.value as OperationType)}
+                        >
+                          {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
+                            <MenuItem key={type} value={type}>{type}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={1} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteSingleOperation(event.id)}
+                        disabled={loading}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Grid>
+                  </Grid>
+                ))}
+              </Paper>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Total: {locationEditData.events.length} operations
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {locationEditData.date && formatDate(locationEditData.date)}
+                </Typography>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelLocationEdit}>Cancel</Button>
+          <Button 
+            onClick={handleSaveLocationEdit} 
+            variant="contained" 
+            color="primary"
+            disabled={!locationEditData?.newLocation || loading}
+            sx={{ ml: 1 }}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Dialog for editing operation */}
+      <Dialog
+        open={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Operation</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Date"
+                type="date"
+                value={editFormData?.date || ''}
+                onChange={(e) => setEditFormData({ ...editFormData!, date: e.target.value })}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                inputProps={{
+                  placeholder: "дд.мм.гггг"
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Time"
+                type="time"
+                value={editFormData?.time || ''}
+                onChange={(e) => setEditFormData({ ...editFormData!, time: e.target.value })}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Location"
+                value={editFormData?.location || ''}
+                onChange={(e) => setEditFormData({ ...editFormData!, location: e.target.value })}
+                fullWidth
+                placeholder="Enter location"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Operation Type</InputLabel>
+                <Select
+                  value={editFormData?.operationType || ''}
+                  label="Operation Type"
+                  onChange={(e) => setEditFormData({ ...editFormData!, operationType: e.target.value as OperationType })}
+                >
+                  {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
+                    <MenuItem key={type} value={type}>{type}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              if (window.confirm('Are you sure you want to delete this operation?')) {
+                if (editFormData?.id) {
+                  handleDeleteOperation(editFormData.id);
+                }
+                setIsEditDialogOpen(false);
+              }
+            }} 
+            color="error" 
+            startIcon={<DeleteForeverIcon />}
+            sx={{ position: 'absolute', left: 16 }}
+          >
+            Delete
+          </Button>
+          <Box>
+            <Button onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleSaveEdit} 
+              variant="contained" 
+              color="primary"
+              disabled={!editFormData?.location || !editFormData?.time || !editFormData?.operationType || loading}
+              sx={{ ml: 1 }}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Save'}
+            </Button>
+          </Box>
+        </DialogActions>
+      </Dialog>
+      
       {/* Snackbar for notifications */}
       <Snackbar 
         open={snackbar.open} 
@@ -984,138 +2008,6 @@ const DPHoursPage = () => {
         </Alert>
       </Snackbar>
     </Container>
-  );
-};
-
-// Component for displaying event timeline
-interface TimelineProps {
-  events: DPHours[];
-  onEdit: (id: string, data: DPHours) => void;
-  onDelete: (id: string) => void;
-}
-
-const Timeline = ({ events, onEdit, onDelete }: TimelineProps) => {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<DPHours | null>(null);
-  
-  const handleEditClick = (event: DPHours) => {
-    setEditingId(event.id);
-    setEditForm({...event});
-  };
-  
-  const handleEditChange = (field: keyof DPHours, value: string) => {
-    if (editForm) {
-      setEditForm({
-        ...editForm,
-        [field]: value
-      });
-    }
-  };
-  
-  const handleSaveEdit = () => {
-    if (editForm) {
-      onEdit(editForm.id, editForm);
-      setEditingId(null);
-      setEditForm(null);
-    }
-  };
-  
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditForm(null);
-  };
-  
-  return (
-    <List sx={{ width: '100%' }}>
-      {events.map((event, index) => (
-        <React.Fragment key={event.id}>
-          {index > 0 && <Divider component="li" />}
-          <ListItem 
-            sx={{ 
-              py: 2,
-              borderLeft: `4px solid ${operationColors[event.operationType]}`,
-              pl: 3
-            }}
-          >
-            {editingId === event.id ? (
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={3}>
-                  <TextField
-                    label="Time"
-                    type="time"
-                    value={editForm?.time || ''}
-                    onChange={(e) => handleEditChange('time', e.target.value)}
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={3}>
-                  <FormControl fullWidth>
-                    <InputLabel>Operation Type</InputLabel>
-                    <Select
-                      value={editForm?.operationType || ''}
-                      onChange={(e) => handleEditChange('operationType', e.target.value)}
-                      label="Operation Type"
-                    >
-                      {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
-                        <MenuItem key={type} value={type}>{type}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    label="Location"
-                    value={editForm?.location || ''}
-                    onChange={(e) => handleEditChange('location', e.target.value)}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid item xs={12} sm={2}>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button variant="contained" size="small" onClick={handleSaveEdit}>
-                      Save
-                    </Button>
-                    <Button size="small" onClick={handleCancelEdit}>
-                      Cancel
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
-            ) : (
-              <>
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
-                        {event.time}
-                      </Typography>
-                      <Chip 
-                        label={event.operationType}
-                        size="small"
-                        sx={{ 
-                          backgroundColor: operationColors[event.operationType],
-                          color: 'white'
-                        }}
-                      />
-                    </Box>
-                  }
-                  secondary={`Location: ${event.location}`}
-                />
-                <ListItemSecondaryAction>
-                  <IconButton edge="end" onClick={() => handleEditClick(event)} size="small" sx={{ mr: 1 }}>
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton edge="end" onClick={() => onDelete(event.id)} size="small">
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </>
-            )}
-          </ListItem>
-        </React.Fragment>
-      ))}
-    </List>
   );
 };
 

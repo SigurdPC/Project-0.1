@@ -190,7 +190,7 @@ const DailyROB = () => {
             </Typography>
           </Box>
           
-          <SimpleDataTable
+          <DataTable
             columns={columns}
             data={todayRecords}
             onAdd={handleAdd}
@@ -209,13 +209,12 @@ const DailyROB = () => {
       {/* Content for "History" tab */}
       {tabValue === 1 && (
         <Paper sx={{ p: 3, mb: 3 }}>
-          <DataTableWithSearch
+          <DataTable
             columns={columns}
             data={data}
             onAdd={handleAdd}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            title="All Records"
           />
           
           {data.length === 0 && !loading && (
