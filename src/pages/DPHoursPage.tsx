@@ -650,6 +650,26 @@ const DPHoursPage = () => {
     }
   };
 
+  // История: добавление новой операции в локацию
+  const handleAddLocationOperation = () => {
+    if (locationEditData) {
+      // Создаем новую операцию с временным id и проверяем, что все поля инициализированы
+      const newOperation: DPHours = {
+        id: `temp-${Date.now()}`,
+        date: locationEditData.date,
+        location: locationEditData.newLocation || '',
+        time: '',
+        operationType: 'DP Setup'
+      };
+      
+      // Добавляем новую операцию к существующим
+      setLocationEditData({
+        ...locationEditData,
+        events: [...locationEditData.events, newOperation]
+      });
+    }
+  };
+
   // История: удаление всех операций локации
   const handleDeleteLocationEvents = async () => {
     if (!locationEditData || !window.confirm(`Вы уверены, что хотите удалить все операции для локации "${locationEditData.newLocation}"?`)) {
@@ -660,7 +680,10 @@ const DPHoursPage = () => {
     try {
       // Удаляем каждое событие
       for (const event of locationEditData.events) {
-        await dphoursApi.deleteRecord(event.id);
+        const eventId = event.id;
+        if (eventId && !String(eventId).startsWith('temp-')) {
+          await dphoursApi.deleteRecord(eventId);
+        }
       }
       
       // Обновляем данные на клиенте
@@ -683,39 +706,122 @@ const DPHoursPage = () => {
   const handleSaveLocationEdit = async () => {
     if (!locationEditData) return;
     
+    // Проверяем наличие локации
+    if (!locationEditData.newLocation || locationEditData.newLocation.trim() === '') {
+      showSnackbar('Пожалуйста, укажите название локации', 'warning');
+      return;
+    }
+    
+    // Проверяем наличие даты
+    if (!locationEditData.date || locationEditData.date.trim() === '') {
+      showSnackbar('Пожалуйста, укажите дату', 'warning');
+      return;
+    }
+    
+    // Проверяем, заполнены ли все обязательные поля операций
+    const hasEmptyFields = locationEditData.events.some(event => 
+      !event.time || event.time.trim() === '' || 
+      !event.operationType
+    );
+    
+    if (hasEmptyFields) {
+      showSnackbar('Пожалуйста, заполните все поля для операций', 'warning');
+      return;
+    }
+    
     setLoading(true);
     try {
-      // Обновляем каждое событие с возможно измененными данными операций
-      for (const event of locationEditData.events) {
-        await dphoursApi.updateRecord(event.id, {
-          ...event,
-          date: locationEditData.date,
-          location: locationEditData.newLocation
-        });
+      // Массив для хранения обновленных и новых записей
+      const updatedRecords: DPHours[] = [];
+      
+      // Сортируем операции по времени перед сохранением
+      const sortedEvents = [...locationEditData.events].sort((a, b) => 
+        a.time.localeCompare(b.time)
+      );
+      
+      for (const event of sortedEvents) {
+        try {
+          console.log('Processing event:', event);
+          
+          const eventData = {
+            date: locationEditData.date,
+            time: event.time,
+            location: locationEditData.newLocation,
+            operationType: event.operationType as OperationType
+          };
+          
+          console.log('Event data to save:', eventData);
+
+          // Проверяем наличие и тип ID
+          const eventId = event.id;
+          const isNewRecord = !eventId || String(eventId).startsWith('temp-');
+          
+          if (isNewRecord) {
+            console.log('Creating new record...');
+            const newRecord = await dphoursApi.createRecord(eventData);
+            console.log('New record created:', newRecord);
+            
+            if (newRecord && newRecord.id) {
+              updatedRecords.push({
+                ...eventData,
+                id: newRecord.id
+              });
+            }
+          } else {
+            console.log('Updating existing record:', eventId);
+            const updatedRecord = await dphoursApi.updateRecord(eventId, eventData);
+            console.log('Record updated:', updatedRecord);
+            
+            if (updatedRecord && updatedRecord.id) {
+              updatedRecords.push({
+                ...eventData,
+                id: updatedRecord.id
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Error processing operation:', {
+            event,
+            error: err instanceof Error ? err.message : err
+          });
+          throw err;
+        }
       }
       
+      console.log('All records processed successfully:', updatedRecords);
+      
       // Обновляем данные на клиенте
-      setData(prev => prev.map(item => {
-        // Находим соответствующее обновленное событие
-        const updatedEvent = locationEditData.events.find(e => e.id === item.id);
-        if (updatedEvent) {
-          return { 
-            ...item, 
-            date: locationEditData.date,
-            location: locationEditData.newLocation,
-            time: updatedEvent.time,
-            operationType: updatedEvent.operationType 
-          };
-        }
-        return item;
-      }));
+      setData(prev => {
+        // Удаляем старые записи и добавляем обновленные
+        const filteredData = prev.filter(item => 
+          !locationEditData.events.some(e => e.id === item.id)
+        );
+        const newData = [...filteredData, ...updatedRecords].sort((a, b) => {
+          // Сортируем по дате и времени
+          if (a.date !== b.date) {
+            return new Date(b.date).getTime() - new Date(a.date).getTime();
+          }
+          return a.time.localeCompare(b.time);
+        });
+        console.log('Updated client data:', newData);
+        return newData;
+      });
       
       setIsLocationEditDialogOpen(false);
       setLocationEditData(null);
       showSnackbar('Записи успешно обновлены', 'success');
+      
+      // Обновляем данные с сервера для синхронизации
+      await fetchData();
     } catch (error) {
-      console.error('Failed to update location:', error);
-      showSnackbar('Не удалось обновить записи', 'error');
+      console.error('Failed to update location:', {
+        error: error instanceof Error ? error.message : error,
+        locationEditData
+      });
+      
+      // Показываем более подробное сообщение об ошибке
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      showSnackbar(`Не удалось обновить записи: ${errorMessage}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -771,57 +877,25 @@ const DPHoursPage = () => {
     
     setLoading(true);
     try {
+      // Преобразуем ID в строку
+      const operationId = String(id || '');
+      
       // Удаляем запись
-      await dphoursApi.deleteRecord(id);
+      await dphoursApi.deleteRecord(operationId);
       
       // Обновляем данные на клиенте
-      setData(prev => prev.filter(item => item.id !== id));
+      setData(prev => prev.filter(item => String(item.id) !== operationId));
       
       // Если открыт диалог редактирования, закрываем его
-      if (editFormData?.id === id) {
+      if (editFormData?.id === operationId) {
         setIsEditDialogOpen(false);
         setEditFormData(null);
       }
       
       showSnackbar('Operation deleted successfully', 'success');
-    } catch (error) {
-      console.error('Failed to delete operation:', error);
+    } catch (err) {
+      console.error('Failed to delete operation:', err);
       showSnackbar('Failed to delete operation', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // В диалоге редактирования локации добавим возможность удаления отдельной операции
-  const handleDeleteSingleOperation = async (id: string) => {
-    if (!window.confirm('Вы уверены, что хотите удалить эту операцию?')) {
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      // Удаляем запись
-      await dphoursApi.deleteRecord(id);
-      
-      // Обновляем данные на клиенте
-      setData(prev => prev.filter(item => item.id !== id));
-      
-      // Если это последняя операция в локации, закрываем диалог
-      if (locationEditData && locationEditData.events.length <= 1) {
-        setIsLocationEditDialogOpen(false);
-        setLocationEditData(null);
-        showSnackbar('Операция успешно удалена', 'success');
-      } else if (locationEditData) {
-        // Иначе обновляем список операций в локации
-        setLocationEditData({
-          ...locationEditData,
-          events: locationEditData.events.filter(event => event.id !== id)
-        });
-        showSnackbar('Операция успешно удалена', 'success');
-      }
-    } catch (error) {
-      console.error('Failed to delete operation:', error);
-      showSnackbar('Не удалось удалить операцию', 'error');
     } finally {
       setLoading(false);
     }
@@ -958,9 +1032,25 @@ const DPHoursPage = () => {
                   onClick={() => {
                     if (window.confirm(`Вы уверены, что хотите удалить все операции для локации "${location}"?`)) {
                       const events = getFilteredEventsForLocation(date, location);
-                      if (events.length > 0) {
-                        handleDeleteOperation(events[0].id);
-                      }
+                      // Удаляем все события для данной локации
+                      events.forEach(async (event) => {
+                        try {
+                          const eventId = String(event.id || '');
+                          if (!eventId.startsWith('temp-')) {
+                            await dphoursApi.deleteRecord(eventId);
+                          }
+                        } catch (err) {
+                          console.error('Failed to delete event:', err);
+                        }
+                      });
+                      
+                      // Обновляем данные на клиенте
+                      setData(prev => prev.filter(item => 
+                        !(item.date === date && 
+                          item.location === location)
+                      ));
+                      
+                      showSnackbar('Локация успешно удалена', 'success');
                     }
                   }}
                   sx={{ color: 'white' }}
@@ -1006,6 +1096,48 @@ const DPHoursPage = () => {
         ))}
       </Box>
     );
+  };
+
+  // В диалоге редактирования локации добавим возможность удаления отдельной операции
+  const handleDeleteSingleOperation = async (id: string) => {
+    if (!locationEditData) return;
+
+    if (!window.confirm('Вы уверены, что хотите удалить эту операцию?')) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Преобразуем ID в строку и проверяем его тип
+      const operationId = String(id || '');
+      
+      // Если это не временный ID, удаляем с сервера
+      if (!operationId.startsWith('temp-')) {
+        await dphoursApi.deleteRecord(operationId);
+        // Обновляем основной список данных
+        setData(prev => prev.filter(item => String(item.id) !== operationId));
+      }
+      
+      // Обновляем список операций в диалоге редактирования
+      if (locationEditData.events.length <= 1) {
+        // Если это последняя операция, закрываем диалог
+        setIsLocationEditDialogOpen(false);
+        setLocationEditData(null);
+      } else {
+        // Иначе обновляем список операций
+        setLocationEditData({
+          ...locationEditData,
+          events: locationEditData.events.filter(event => String(event.id) !== operationId)
+        });
+      }
+      
+      showSnackbar('Операция успешно удалена', 'success');
+    } catch (error) {
+      console.error('Failed to delete operation:', error);
+      showSnackbar('Не удалось удалить операцию', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -1217,7 +1349,7 @@ const DPHoursPage = () => {
         onLocationNameChange={handleLocationNameChange}
         onLocationOperationChange={handleLocationOperationChange}
         onDeleteSingleOperation={handleDeleteSingleOperation}
-        onDeleteAllOperations={handleDeleteLocationEvents}
+        onAddOperation={handleAddLocationOperation}
       />
       
       {/* Dialog for editing operation */}
