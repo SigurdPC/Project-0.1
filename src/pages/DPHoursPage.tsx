@@ -337,18 +337,43 @@ const DPHoursPage = () => {
   // Сгруппированные события по локациям для конкретной даты
   const getGroupedEventsForDate = (date: string) => {
     const events = getEventsForDate(date);
-    const grouped: Record<string, DPHours[]> = {};
+    const grouped: Record<string, DPHours[][]> = {};
     
-    events.forEach(event => {
-      if (!grouped[event.location]) {
-        grouped[event.location] = [];
+    // Временная структура для группировки
+    const tempGroups: Record<string, DPHours[][]> = {};
+    
+    // Сначала сортируем события по времени
+    const sortedEvents = [...events].sort((a, b) => a.time.localeCompare(b.time));
+    
+    // Проходим по всем событиям
+    sortedEvents.forEach((event) => {
+      const location = event.location;
+      
+      // Инициализируем структуру для локации, если её ещё нет
+      if (!tempGroups[location]) {
+        tempGroups[location] = [];
+        tempGroups[location].push([]);
       }
-      grouped[event.location].push(event);
+      
+      // Получаем последнюю группу для этой локации
+      const lastGroup = tempGroups[location][tempGroups[location].length - 1];
+      
+      // Добавляем событие в текущую группу
+      lastGroup.push(event);
+      
+      // Если это операция DP OFF, начинаем новую группу для этой локации
+      if (event.operationType === 'DP OFF') {
+        tempGroups[location].push([]);
+      }
     });
     
-    // Сортировка событий внутри каждой локации по времени
-    Object.keys(grouped).forEach(location => {
-      grouped[location].sort((a, b) => a.time.localeCompare(b.time));
+    // Удаляем пустые группы и формируем финальную структуру
+    Object.keys(tempGroups).forEach((location) => {
+      // Фильтруем только непустые группы
+      const nonEmptyGroups = tempGroups[location].filter(group => group.length > 0);
+      if (nonEmptyGroups.length > 0) {
+        grouped[location] = nonEmptyGroups;
+      }
     });
     
     return grouped;
@@ -382,18 +407,20 @@ const DPHoursPage = () => {
     
     const filteredLocations: string[] = [];
     
-    Object.entries(groupedEvents).forEach(([location, events]) => {
+    Object.entries(groupedEvents).forEach(([location, groups]) => {
       // Проверяем, содержит ли локация искомую строку
       if (location.toLowerCase().includes(query)) {
         filteredLocations.push(location);
         return;
       }
       
-      // Проверяем, содержит ли хотя бы одно событие искомую строку
-      const hasMatchingEvent = events.some(event => 
-        event.time.toLowerCase().includes(query) ||
-        event.operationType.toLowerCase().includes(query) ||
-        formatDate(event.date).toLowerCase().includes(query)
+      // Проверяем, содержит ли хотя бы одна группа событий искомую строку
+      const hasMatchingEvent = groups.some(group => 
+        group.some(event => 
+          event.time.toLowerCase().includes(query) ||
+          event.operationType.toLowerCase().includes(query) ||
+          formatDate(event.date).toLowerCase().includes(query)
+        )
       );
       
       if (hasMatchingEvent) {
@@ -407,13 +434,16 @@ const DPHoursPage = () => {
   // Получение отфильтрованных событий для локации
   const getFilteredEventsForLocation = (date: string, location: string) => {
     if (!searchQuery.trim()) {
-      return getGroupedEventsForDate(date)[location] || [];
+      // Возвращаем все группы событий для данной локации сплющенными в один массив
+      const groups = getGroupedEventsForDate(date)[location] || [];
+      return groups.flat();
     }
     
     const query = searchQuery.toLowerCase();
-    const events = getGroupedEventsForDate(date)[location] || [];
+    const groups = getGroupedEventsForDate(date)[location] || [];
     
-    return events.filter(event => 
+    // Фильтруем каждую группу и возвращаем их объединенными
+    return groups.flat().filter(event => 
       event.time.toLowerCase().includes(query) ||
       event.operationType.toLowerCase().includes(query) ||
       formatDate(event.date).toLowerCase().includes(query)
@@ -996,103 +1026,175 @@ const DPHoursPage = () => {
     handleDelete(id);
   };
 
+  // Обработчик удаления группы локаций для вкладки Today
+  const handleDeleteLocationAdapter = (id: string) => {
+    if (!id) return;
+    
+    // Находим событие по ID
+    const targetEvent = data.find(item => String(item.id) === String(id));
+    if (!targetEvent) return;
+    
+    // Получаем все события для этой даты и локации
+    const dateEvents = data.filter(item => 
+      item.date === targetEvent.date && 
+      item.location === targetEvent.location
+    );
+    
+    // Сортируем события по времени
+    const sortedEvents = [...dateEvents].sort((a, b) => 
+      a.time.localeCompare(b.time)
+    );
+    
+    // Разбиваем на группы по DP OFF
+    const groups: DPHours[][] = [];
+    let currentGroup: DPHours[] = [];
+    
+    sortedEvents.forEach(event => {
+      // Добавляем событие в текущую группу
+      currentGroup.push(event);
+      
+      // Если это DP OFF, начинаем новую группу
+      if (event.operationType === 'DP OFF') {
+        groups.push([...currentGroup]);
+        currentGroup = [];
+      }
+    });
+    
+    // Добавляем последнюю группу, если она не пустая
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup);
+    }
+    
+    // Находим группу, которая содержит наше событие
+    const targetGroupIndex = groups.findIndex(group => 
+      group.some(event => String(event.id) === String(id))
+    );
+    
+    if (targetGroupIndex !== -1 && groups[targetGroupIndex].length > 0) {
+      const targetGroup = groups[targetGroupIndex];
+      
+      // Подтверждение удаления
+      if (window.confirm(`Вы уверены, что хотите удалить эту группу операций?`)) {
+        // Удаляем все события из группы
+        targetGroup.forEach(async (event) => {
+          try {
+            const eventId = String(event.id);
+            if (!eventId.startsWith('temp-')) {
+              await dphoursApi.deleteRecord(eventId);
+            }
+          } catch (err) {
+            console.error('Failed to delete event:', err);
+          }
+        });
+        
+        // Обновляем данные на клиенте - удаляем все ID из целевой группы
+        const targetIds = targetGroup.map(event => String(event.id));
+        setData(prev => prev.filter(item => !targetIds.includes(String(item.id))));
+        
+        showSnackbar('Группа операций успешно удалена', 'success');
+      }
+    }
+  };
+
   // Функция для отображения истории по дате с добавлением кнопок редактирования
   const renderHistoryByDate = (date: string) => {
     const locationsForDate = getFilteredLocationsForDate(date);
+    const groupedEvents = getGroupedEventsForDate(date);
     
     return (
       <Box>
         {locationsForDate.map((location: string) => (
-          <Paper key={`${date}-${location}`} sx={{ mb: 3, overflow: 'hidden' }}>
-            <Box sx={{ 
-              p: 1.5, 
-              bgcolor: 'primary.light', 
-              color: 'white',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
-            >
-              <Typography variant="subtitle1" fontWeight="bold">
-                {location}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography variant="body2">
-                  {getFilteredEventsForLocation(date, location).length} operations
+          // Для каждой локации отображаем все её группы
+          groupedEvents[location].map((group, groupIndex) => (
+            <Paper key={`${date}-${location}-${groupIndex}`} sx={{ mb: 3, overflow: 'hidden' }}>
+              <Box sx={{ 
+                p: 1.5, 
+                bgcolor: 'primary.light', 
+                color: 'white',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+              >
+                <Typography variant="subtitle1" fontWeight="bold">
+                  {location}
                 </Typography>
-                <IconButton 
-                  size="small"
-                  onClick={() => handleEditLocation(date, location, getFilteredEventsForLocation(date, location))}
-                  sx={{ color: 'white', ml: 1, mr: 0.5 }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton 
-                  size="small"
-                  onClick={() => {
-                    if (window.confirm(`Вы уверены, что хотите удалить все операции для локации "${location}"?`)) {
-                      const events = getFilteredEventsForLocation(date, location);
-                      // Удаляем все события для данной локации
-                      events.forEach(async (event) => {
-                        try {
-                          const eventId = String(event.id || '');
-                          if (!eventId.startsWith('temp-')) {
-                            await dphoursApi.deleteRecord(eventId);
-                          }
-                        } catch (err) {
-                          console.error('Failed to delete event:', err);
-                        }
-                      });
-                      
-                      // Обновляем данные на клиенте
-                      setData(prev => prev.filter(item => 
-                        !(item.date === date && 
-                          item.location === location)
-                      ));
-                      
-                      showSnackbar('Локация успешно удалена', 'success');
-                    }
-                  }}
-                  sx={{ color: 'white' }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            </Box>
-            
-            <List sx={{ width: '100%' }}>
-              {getFilteredEventsForLocation(date, location).map((event, index) => (
-                <React.Fragment key={event.id}>
-                  {index > 0 && <Divider component="li" />}
-                  <ListItem 
-                    sx={{ 
-                      py: 1.5,
-                      borderLeft: `4px solid ${operationColors[event.operationType]}`,
-                      pl: 3
-                    }}
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2">
+                    {group.length} operations
+                  </Typography>
+                  <IconButton 
+                    size="small"
+                    onClick={() => handleEditLocation(date, location, group)}
+                    sx={{ color: 'white', ml: 1, mr: 0.5 }}
                   >
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
-                            {event.time}
-                          </Typography>
-                          <Chip 
-                            label={event.operationType}
-                            size="small"
-                            sx={{ 
-                              backgroundColor: operationColors[event.operationType],
-                              color: 'white'
-                            }}
-                          />
-                        </Box>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton 
+                    size="small"
+                    onClick={() => {
+                      if (window.confirm(`Вы уверены, что хотите удалить все операции для этой локации "${location}"?`)) {
+                        // Удаляем все события только из этой группы
+                        group.forEach(async (event) => {
+                          try {
+                            const eventId = String(event.id || '');
+                            if (!eventId.startsWith('temp-')) {
+                              await dphoursApi.deleteRecord(eventId);
+                            }
+                          } catch (err) {
+                            console.error('Failed to delete event:', err);
+                          }
+                        });
+                        
+                        // Обновляем данные на клиенте
+                        setData(prev => prev.filter(item => 
+                          !group.some(event => event.id === item.id)
+                        ));
+                        
+                        showSnackbar('Локация успешно удалена', 'success');
                       }
-                    />
-                  </ListItem>
-                </React.Fragment>
-              ))}
-            </List>
-          </Paper>
+                    }}
+                    sx={{ color: 'white' }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Box>
+              
+              <List sx={{ width: '100%' }}>
+                {group.map((event, index) => (
+                  <React.Fragment key={event.id}>
+                    {index > 0 && <Divider component="li" />}
+                    <ListItem 
+                      sx={{ 
+                        py: 1.5,
+                        borderLeft: `4px solid ${operationColors[event.operationType]}`,
+                        pl: 3
+                      }}
+                    >
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
+                              {event.time}
+                            </Typography>
+                            <Chip 
+                              label={event.operationType}
+                              size="small"
+                              sx={{ 
+                                backgroundColor: operationColors[event.operationType],
+                                color: 'white'
+                              }}
+                            />
+                          </Box>
+                        }
+                      />
+                    </ListItem>
+                  </React.Fragment>
+                ))}
+              </List>
+            </Paper>
+          ))
         ))}
       </Box>
     );
@@ -1199,7 +1301,7 @@ const DPHoursPage = () => {
               events={eventsForSelectedDate} 
               onEdit={handleEdit}
               onEditLocation={handleEditLocation}  
-              onDelete={handleDelete}
+              onDelete={handleDeleteLocationAdapter}
             />
           )}
         </Paper>
