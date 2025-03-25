@@ -15,8 +15,6 @@ import {
   Timeline as TimelineIcon 
 } from '@mui/icons-material';
 import DataTable, { Column } from '../components/DataTable';
-import SimpleDataTable from '../components/SimpleDataTable';
-import DataTableWithSearch from '../components/DataTableWithSearch';
 import type { DailyROB as DailyROBType } from '../types';
 import dailyROBsApi from '../api/dailyROBsApi';
 import { formatDate } from '../utils/dateUtils';
@@ -91,7 +89,7 @@ const DailyROB = () => {
   };
 
   // Switch between tabs
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 

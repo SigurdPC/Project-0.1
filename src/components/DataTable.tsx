@@ -220,9 +220,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
         }}
         inputProps={{
           max: column.type === 'date' ? '9999-12-31' : undefined,
-          placeholder: column.type === 'date' ? 'дд.мм.гггг' : undefined
         }}
-        placeholder={column.type === 'date' ? 'дд.мм.гггг' : undefined}
       />
     );
   };

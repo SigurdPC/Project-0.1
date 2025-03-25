@@ -19,16 +19,13 @@ import dphoursApi from '../api/dphoursApi';
 import Timeline from '../components/dphours/Timeline';
 import { 
   ComplexAddDialog, 
-  StatsDialog, 
   EditLocationDialog, 
-  EditOperationDialog 
+  EditOperationDialog
 } from '../components/dphours/Dialogs';
 import { 
   DPHours, 
   OperationType, 
-  DPSession, 
   SnackbarState, 
-  DateRange, 
   ComplexAddState,
   LocationEditData,
   operationColors
@@ -36,8 +33,6 @@ import {
 import { 
   formatDate, 
   parseUserDateInput, 
-  calculateDPSessions,
-  calculateTotalDuration,
   formatDuration
 } from '../components/dphours/utils';
 
@@ -65,19 +60,10 @@ const DPHoursPage = () => {
   
   // Состояние диалогов
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
-  const [isStatsDialogOpen, setIsStatsDialogOpen] = useState<boolean>(false);
   const [isLocationEditDialogOpen, setIsLocationEditDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   
   // Данные форм и диалогов
-  const [dateRange, setDateRange] = useState<DateRange>({
-    start: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 10),
-    end: new Date().toISOString().slice(0, 10), 
-    startTime: '00:00',
-    endTime: '23:59',
-    useTimeFilter: false
-  });
-  const [dpSessions, setDpSessions] = useState<DPSession[]>([]);
   const [newEvent, setNewEvent] = useState<Partial<DPHours>>({
     date: selectedDate,
     time: '',
@@ -280,43 +266,6 @@ const DPHoursPage = () => {
     }
   };
   
-  // Обработчик для открытия диалога статистики
-  const handleOpenStats = async () => {
-    setLoading(true);
-    try {
-      let records;
-      // Get records from API based on date range
-      records = await dphoursApi.getRecordsByDateRange(dateRange.start, dateRange.end);
-      
-      // Transform API data to match our component's data structure
-      const transformedRecords = records.map(record => ({
-        id: record.id || Date.now().toString(),
-        date: record.date,
-        time: record.time,
-        location: record.location,
-        operationType: record.operationType
-      }));
-      
-      // Calculate sessions using the transformed data
-      const sessions = calculateDPSessions(
-        dateRange.start, 
-        dateRange.end, 
-        transformedRecords,
-        dateRange.useTimeFilter,
-        dateRange.startTime,
-        dateRange.endTime
-      );
-      
-      setDpSessions(sessions);
-      setIsStatsDialogOpen(true);
-    } catch (err) {
-      console.error('Failed to fetch stats data:', err);
-      showSnackbar('Failed to load statistics', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Обработчик поиска
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
@@ -946,53 +895,6 @@ const DPHoursPage = () => {
     }
   };
   
-  // Обработчик даты для статистики
-  const handleDateRangeChange = (field: string, value: string) => {
-    if (field === 'start' || field === 'end') {
-      value = parseUserDateInput(value);
-    }
-    
-    setDateRange({
-      ...dateRange,
-      [field]: value
-    });
-  };
-  
-  // Переключение фильтра по времени
-  const handleToggleTimeFilter = () => {
-    setDateRange({
-      ...dateRange,
-      useTimeFilter: !dateRange.useTimeFilter
-    });
-  };
-
-  // Функция для фильтрации данных
-  const filteredData = useMemo(() => {
-    let filtered = data;
-    
-    // Фильтр по диапазону дат
-    if (dateRange.start && dateRange.end) {
-      filtered = filtered.filter(item => {
-        const itemDate = new Date(item.date);
-        const startDate = new Date(dateRange.start);
-        const endDate = new Date(dateRange.end);
-        endDate.setHours(23, 59, 59); // Включаем весь конечный день
-        
-        return itemDate >= startDate && itemDate <= endDate;
-      });
-    }
-    
-    // Фильтр по поисковому запросу
-    if (searchTerm) {
-      const lowercaseSearch = searchTerm.toLowerCase();
-      filtered = filtered.filter(item =>
-        item.location.toLowerCase().includes(lowercaseSearch)
-      );
-    }
-    
-    return filtered;
-  }, [data, dateRange, searchTerm]);
-  
   // Обработчики пагинации
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -1007,15 +909,15 @@ const DPHoursPage = () => {
   const applyDateFilter = () => {
     setPage(0); // Сбрасываем на первую страницу при применении фильтра
     // Устанавливаем общее количество записей для пагинации
-    setTotalRecords(filteredData.length);
+    setTotalRecords(data.length);
   };
 
   // Эффект для установки общего числа записей при загрузке данных
   useEffect(() => {
     if (!loading) {
-      setTotalRecords(filteredData.length);
+      setTotalRecords(data.length);
     }
-  }, [filteredData, loading]);
+  }, [data, loading]);
   
   // Адаптеры для новых обработчиков Timeline
   const handleEditOperationAdapter = (record: DPHours) => {
@@ -1329,12 +1231,6 @@ const DPHoursPage = () => {
                   ),
                 }}
               />
-              <Button 
-                variant="outlined"
-                onClick={handleOpenStats}
-              >
-                DP Statistics
-              </Button>
             </Box>
           </Box>
           
@@ -1427,17 +1323,6 @@ const DPHoursPage = () => {
         onAddOperation={handleAddOperation}
         onOperationChange={handleOperationChange}
         onRemoveOperation={handleRemoveOperation}
-      />
-      
-      {/* Dialog for DP Statistics */}
-      <StatsDialog
-        open={isStatsDialogOpen}
-        dateRange={dateRange}
-        dpSessions={dpSessions}
-        onClose={() => setIsStatsDialogOpen(false)}
-        onDateRangeChange={handleDateRangeChange}
-        onToggleTimeFilter={handleToggleTimeFilter}
-        onUpdateStats={handleOpenStats}
       />
       
       {/* Dialog for editing location */}
