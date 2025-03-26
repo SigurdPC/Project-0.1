@@ -37,7 +37,7 @@ interface GroupedOperation {
 }
 
 const DPTimeResults: React.FC<DPTimeResultsProps> = ({ 
-  results, operations, onBack 
+  results, operations
 }) => {
   // Состояние для бесконечной прокрутки
   const [visibleDatesCount, setVisibleDatesCount] = useState<number>(10);
@@ -144,113 +144,115 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
   }, [handleIntersect, visibleDates]);
 
   return (
-    <Paper sx={{ p: 3 }}>
-      <Typography variant="h5" gutterBottom>
+    <Box>
+      <Typography variant="h5" sx={{ p: 3, pb: 1 }}>
         Результаты расчета
       </Typography>
       
       {/* Результаты */}
       {visibleDates.length > 0 ? (
-        visibleDates.map((date, index) => {
-          // Получаем операции для текущей даты
-          const dateOperations = groupedResults[date];
+        <Box sx={{ maxHeight: '500px', overflow: 'auto' }}>
+          {visibleDates.map((date, index) => {
+            // Получаем операции для текущей даты
+            const dateOperations = groupedResults[date];
+            
+            // Пропускаем даты без результатов
+            if (!dateOperations || Object.keys(dateOperations).length === 0) return null;
+            
+            // Определяем, является ли это последним элементом
+            const isLastItem = index === visibleDates.length - 1;
+            
+            return (
+              <Box 
+                key={date} 
+                sx={{ px: 3, pb: 2 }}
+                ref={isLastItem ? lastDateElementRef : null}
+              >
+                <Typography variant="h6" sx={{ mb: 1, mt: 2 }}>
+                  {formatDate(date)}
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Начало операции</TableCell>
+                        <TableCell>Конец операции</TableCell>
+                        <TableCell>Смена</TableCell>
+                        <TableCell align="right">Часы в смене</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {Object.values(dateOperations).map((groupedOp) => {
+                        return (
+                          <TableRow key={groupedOp.operationId}>
+                            <TableCell>
+                              {formatDate(groupedOp.startDate)} {groupedOp.startTime}
+                            </TableCell>
+                            <TableCell>
+                              {groupedOp.endDate 
+                                ? `${formatDate(groupedOp.endDate)} ${groupedOp.endTime || ''}`
+                                : 'В процессе'}
+                            </TableCell>
+                            <TableCell>
+                              {groupedOp.shifts.map(shift => (
+                                <span 
+                                  key={shift.shiftId}
+                                  style={{ 
+                                    margin: '0 4px 4px 0',
+                                    display: 'inline-block',
+                                    padding: '2px 8px',
+                                    borderRadius: '16px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 'bold',
+                                    border: '1px solid #1976d2',
+                                    color: '#1976d2'
+                                  }}
+                                >
+                                  {shift.shiftStart} - {shift.shiftEnd}
+                                </span>
+                              ))}
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" fontWeight="bold">
+                                {formatHoursAndMinutes(groupedOp.totalMinutes)}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            );
+          })}
           
-          // Пропускаем даты без результатов
-          if (!dateOperations || Object.keys(dateOperations).length === 0) return null;
-          
-          // Определяем, является ли это последним элементом
-          const isLastItem = index === visibleDates.length - 1;
-          
-          return (
-            <Box 
-              key={date} 
-              sx={{ mb: 4 }}
-              ref={isLastItem ? lastDateElementRef : null}
-            >
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                {formatDate(date)}
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Начало операции</TableCell>
-                      <TableCell>Конец операции</TableCell>
-                      <TableCell>Смена</TableCell>
-                      <TableCell align="right">Часы в смене</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {Object.values(dateOperations).map((groupedOp) => {
-                      return (
-                        <TableRow key={groupedOp.operationId}>
-                          <TableCell>
-                            {formatDate(groupedOp.startDate)} {groupedOp.startTime}
-                          </TableCell>
-                          <TableCell>
-                            {groupedOp.endDate 
-                              ? `${formatDate(groupedOp.endDate)} ${groupedOp.endTime || ''}`
-                              : 'В процессе'}
-                          </TableCell>
-                          <TableCell>
-                            {groupedOp.shifts.map(shift => (
-                              <span 
-                                key={shift.shiftId}
-                                style={{ 
-                                  margin: '0 4px 4px 0',
-                                  display: 'inline-block',
-                                  padding: '2px 8px',
-                                  borderRadius: '16px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 'bold',
-                                  border: '1px solid #1976d2',
-                                  color: '#1976d2'
-                                }}
-                              >
-                                {shift.shiftStart} - {shift.shiftEnd}
-                              </span>
-                            ))}
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold">
-                              {formatHoursAndMinutes(groupedOp.totalMinutes)}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+          {/* Индикатор загрузки */}
+          {isLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <CircularProgress size={30} />
             </Box>
-          );
-        })
+          )}
+          
+          {/* Сообщение о конце списка */}
+          {!isLoading && visibleDatesCount >= uniqueDates.length && uniqueDates.length > 0 && (
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ py: 2, textAlign: 'center' }}
+            >
+              Конец списка
+            </Typography>
+          )}
+        </Box>
       ) : (
         <Typography variant="body1" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
           Нет результатов для отображения
         </Typography>
       )}
-      
-      {/* Индикатор загрузки */}
-      {isLoading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-          <CircularProgress size={30} />
-        </Box>
-      )}
-      
-      {/* Сообщение о конце списка */}
-      {!isLoading && visibleDatesCount >= uniqueDates.length && uniqueDates.length > 0 && (
-        <Typography 
-          variant="body2" 
-          color="text.secondary" 
-          sx={{ py: 2, textAlign: 'center' }}
-        >
-          Конец списка
-        </Typography>
-      )}
-    </Paper>
+    </Box>
   );
 };
 

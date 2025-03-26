@@ -1,49 +1,102 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Container, Typography, Snackbar, Alert, Paper } from '@mui/material';
+import DPTimeSettings from '../components/dphours/views/DPTimeSettings';
+import DPTimeResults from '../components/dphours/views/DPTimeResults';
 import { 
-  Container, Typography, Box, Paper, Button, Divider
-} from '@mui/material';
-import ShiftInput from '../components/dphours/components/ShiftInput';
-import DateRangeInput from '../components/dphours/components/DateRangeInput';
-import DPTimeResults, { OperationTime } from '../components/dphours/components/DPTimeResults';
-import { Shift, DPHours } from '../components/dphours/types';
-import { calculateOperationTimes, DPTimeSettings } from '../components/dphours/utils/calculations';
-import { parseUserDateInput } from '../utils/dateUtils';
+  Shift, TimeCalculationSettings, 
+  DPTimeOperation, TimeCalculationResult, SnackbarState 
+} from '../components/dphours/types';
+import { 
+  getDPTimeOperations, calculateOperationTimesByShifts 
+} from '../components/dphours/utils';
+import dphoursApi, { DPHours as ApiDPHours } from '../api/dphoursApi';
 
 const DPTimePage: React.FC = () => {
-  // Состояние для настроек расчёта
-  const [settings, setSettings] = useState<DPTimeSettings>({
-    dateStart: '',
-    dateEnd: '',
+  // Состояние данных
+  const [data, setData] = useState<ApiDPHours[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Состояние уведомлений
+  const [snackbar, setSnackbar] = useState<SnackbarState>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
+  
+  // Состояние настроек расчета
+  const [settings, setSettings] = useState<TimeCalculationSettings>({
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
     shifts: [
       {
-        id: '1',
+        id: Date.now().toString(),
         startTime: '08:00',
         endTime: '20:00',
         isOvernight: false
       }
     ]
   });
-
-  // Состояние для результатов расчёта
-  const [results, setResults] = useState<OperationTime[]>([]);
   
-  // Состояние для отображения индикатора загрузки
-  const [loading, setLoading] = useState<boolean>(false);
+  // Результаты расчета
+  const [calculationResults, setCalculationResults] = useState<TimeCalculationResult[]>([]);
   
-  // Состояние для отображения сообщения об ошибке
-  const [error, setError] = useState<string | null>(null);
-  
-  // Состояние для управления видимостью результатов
-  const [showResults, setShowResults] = useState<boolean>(false);
-
-  // Обработчик изменения дат
-  const handleDateChange = (field: 'dateStart' | 'dateEnd', value: string) => {
-    setSettings(prev => ({
-      ...prev,
-      [field]: value
+  // Мемоизированные операции
+  const operations = useMemo<DPTimeOperation[]>(() => {
+    // Преобразуем данные из API формата в формат для расчетов
+    const dphoursData = data.map(item => ({
+      id: item.id || Date.now().toString(), // Гарантируем наличие id
+      date: item.date,
+      time: item.time,
+      location: item.location,
+      operationType: item.operationType
     }));
+    
+    return getDPTimeOperations(dphoursData);
+  }, [data]);
+  
+  // Загрузка данных при монтировании компонента
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const response = await dphoursApi.getAllRecords();
+        setData(response);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+        setError('Ошибка загрузки данных. Пожалуйста, попробуйте позже.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+  
+  // Функция показа уведомления
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' | 'warning') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
   };
-
+  
+  // Обработчик закрытия уведомления
+  const handleSnackbarClose = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+  
+  // Обработчики изменения настроек
+  const handleStartDateChange = (date: string) => {
+    setSettings(prev => ({ ...prev, startDate: date }));
+  };
+  
+  const handleEndDateChange = (date: string) => {
+    setSettings(prev => ({ ...prev, endDate: date }));
+  };
+  
   // Обработчики управления сменами
   const handleAddShift = () => {
     // Используем значения по умолчанию для новой смены
@@ -64,7 +117,7 @@ const DPTimePage: React.FC = () => {
       shifts: [...prev.shifts, newShift]
     }));
   };
-
+  
   const handleUpdateShift = (id: string, field: keyof Shift, value: any) => {
     setSettings(prev => ({
       ...prev,
@@ -73,107 +126,86 @@ const DPTimePage: React.FC = () => {
       )
     }));
   };
-
+  
   const handleDeleteShift = (id: string) => {
     setSettings(prev => ({
       ...prev,
       shifts: prev.shifts.filter(shift => shift.id !== id)
     }));
   };
-
-  // Обработчик расчёта
+  
+  // Обработчик запуска расчета
   const handleCalculate = () => {
-    setError(null);
-    setLoading(true);
+    if (operations.length === 0) {
+      showSnackbar('Нет операций для расчета времени', 'warning');
+      return;
+    }
     
     try {
-      // Проверка наличия всех необходимых данных
-      if (!settings.dateStart || !settings.dateEnd) {
-        throw new Error('Укажите начальную и конечную даты');
+      const results = calculateOperationTimesByShifts(
+        operations,
+        settings.startDate,
+        settings.endDate,
+        settings.shifts
+      );
+      
+      setCalculationResults(results);
+      
+      if (results.length > 0) {
+        showSnackbar('Расчет успешно выполнен', 'success');
+      } else {
+        showSnackbar('Нет результатов для отображения. Проверьте настройки и даты', 'warning');
       }
-      
-      if (settings.shifts.length === 0) {
-        throw new Error('Добавьте хотя бы одну смену');
-      }
-      
-      // Проверка корректности дат
-      const startDate = parseUserDateInput(settings.dateStart);
-      const endDate = parseUserDateInput(settings.dateEnd);
-      
-      if (!startDate || !endDate) {
-        throw new Error('Указаны некорректные даты');
-      }
-      
-      if (startDate > endDate) {
-        throw new Error('Дата начала не может быть позже даты окончания');
-      }
-      
-      // Расчёт времени операций
-      const calculatedTimes = calculateOperationTimes(settings);
-      setResults(calculatedTimes);
-      setShowResults(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Произошла ошибка при расчёте');
-      setResults([]);
-      setShowResults(false);
-    } finally {
-      setLoading(false);
+      console.error('Error during calculation:', err);
+      showSnackbar('Ошибка при расчете времени', 'error');
     }
   };
-
+  
+  // Проверяем, есть ли результаты для отображения
+  const hasResults = calculationResults.length > 0;
+  
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" gutterBottom>
         DP Time
       </Typography>
-
-      <Box sx={{ mb: 3 }}>
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h5" gutterBottom>
-            Настройки расчета
-          </Typography>
-          
-          <DateRangeInput
-            dateStart={settings.dateStart}
-            dateEnd={settings.dateEnd}
-            onDateChange={handleDateChange}
+      
+      {/* Блок настроек */}
+      <DPTimeSettings 
+        settings={settings}
+        loading={loading}
+        error={error}
+        onStartDateChange={handleStartDateChange}
+        onEndDateChange={handleEndDateChange}
+        onAddShift={handleAddShift}
+        onUpdateShift={handleUpdateShift}
+        onDeleteShift={handleDeleteShift}
+        onCalculate={handleCalculate}
+      />
+      
+      {/* Блок результатов */}
+      {hasResults && (
+        <Paper sx={{ mt: 3, p: 0, overflow: 'hidden' }}>
+          <DPTimeResults 
+            results={calculationResults}
+            operations={operations}
+            onBack={() => {}} // Пустая функция, так как интерфейсы объединены
           />
-          
-          <ShiftInput
-            shifts={settings.shifts}
-            onAddShift={handleAddShift}
-            onUpdateShift={handleUpdateShift}
-            onDeleteShift={handleDeleteShift}
-          />
-
-          {error && (
-            <Typography color="error" sx={{ mt: 2 }}>
-              {error}
-            </Typography>
-          )}
-          
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={handleCalculate}
-              disabled={loading}
-            >
-              {loading ? 'Расчет...' : 'РАССЧИТАТЬ'}
-            </Button>
-          </Box>
         </Paper>
-        
-        {showResults && results.length > 0 && (
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h5" gutterBottom>
-              Результаты расчета
-            </Typography>
-            
-            <DPTimeResults results={results} />
-          </Paper>
-        )}
-      </Box>
+      )}
+      
+      {/* Snackbar для уведомлений */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
