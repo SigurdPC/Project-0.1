@@ -19,19 +19,15 @@ const formatHoursAndMinutes = (minutes: number): string => {
   return `${hours}ч ${mins}м`;
 };
 
-// Тип для группировки данных по операциям
-interface GroupedOperation {
-  operationId: string;
-  location: string;
+// Тип для группировки данных по операциям (вместо дней)
+interface OperationGroup {
   startDate: string;
-  startTime: string;
-  endDate: string | null;
-  endTime: string | null;
+  endDate: string;
+  operationId: string;
   shifts: {
     shiftId: string;
     shiftStart: string;
     shiftEnd: string;
-    minutesInShift: number;
   }[];
   totalMinutes: number;
 }
@@ -40,86 +36,81 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
   results, operations
 }) => {
   // Состояние для бесконечной прокрутки
-  const [visibleDatesCount, setVisibleDatesCount] = useState<number>(10);
+  const [visibleOperationsCount, setVisibleOperationsCount] = useState<number>(10);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const observer = useRef<IntersectionObserver | null>(null);
-  const lastDateElementRef = useRef<HTMLDivElement | null>(null);
+  const lastElementRef = useRef<HTMLDivElement | null>(null);
 
-  // Получаем уникальные даты из результатов для группировки
-  const uniqueDates = useMemo(() => {
-    const dates = Array.from(new Set(results.map(result => result.date)));
-    return dates.sort();
-  }, [results]);
-
-  // Группируем результаты по операциям
-  const groupedResults = useMemo(() => {
-    // Группируем данные по дате и операции
-    const grouped: Record<string, Record<string, GroupedOperation>> = {};
+  // Группируем результаты по операциям, а не по дням
+  const groupedOperations = useMemo(() => {
+    // Сначала создадим словарь операций по ID
+    const operationsMap: Record<string, OperationGroup> = {};
     
+    // Проходим по всем результатам
     results.forEach(result => {
-      const { date, operationId, shiftId, shiftStart, shiftEnd, minutesInShift } = result;
+      const { operationId, date, shiftId, shiftStart, shiftEnd, minutesInShift } = result;
       const operation = operations.find(op => op.id === operationId);
       
       if (!operation) return;
       
-      // Инициализируем дату, если она еще не существует
-      if (!grouped[date]) {
-        grouped[date] = {};
-      }
-      
-      // Инициализируем операцию, если она еще не существует для этой даты
-      if (!grouped[date][operationId]) {
-        grouped[date][operationId] = {
-          operationId,
-          location: operation.location,
+      // Если операции еще нет в словаре, создаем её
+      if (!operationsMap[operationId]) {
+        operationsMap[operationId] = {
           startDate: operation.startDate,
-          startTime: operation.startTime,
-          endDate: operation.endDate,
-          endTime: operation.endTime,
+          endDate: operation.endDate || operation.startDate,
+          operationId,
           shifts: [],
           totalMinutes: 0
         };
       }
       
-      // Добавляем информацию о смене
-      grouped[date][operationId].shifts.push({
-        shiftId,
-        shiftStart,
-        shiftEnd,
-        minutesInShift
-      });
+      // Добавляем информацию о смене, если такой еще нет
+      const shiftExists = operationsMap[operationId].shifts.some(
+        s => s.shiftId === shiftId && s.shiftStart === shiftStart && s.shiftEnd === shiftEnd
+      );
+      
+      if (!shiftExists) {
+        operationsMap[operationId].shifts.push({
+          shiftId,
+          shiftStart,
+          shiftEnd
+        });
+      }
       
       // Увеличиваем общее время операции
-      grouped[date][operationId].totalMinutes += minutesInShift;
+      operationsMap[operationId].totalMinutes += minutesInShift;
     });
     
-    return grouped;
+    // Преобразуем словарь в массив и сортируем по дате начала
+    return Object.values(operationsMap).sort((a, b) => 
+      a.startDate > b.startDate ? 1 : a.startDate < b.startDate ? -1 : 0
+    );
   }, [results, operations]);
 
-  // Видимые даты
-  const visibleDates = useMemo(() => {
-    return uniqueDates.slice(0, visibleDatesCount);
-  }, [uniqueDates, visibleDatesCount]);
+  // Видимые операции для бесконечной прокрутки
+  const visibleOperations = useMemo(() => {
+    return groupedOperations.slice(0, visibleOperationsCount);
+  }, [groupedOperations, visibleOperationsCount]);
 
   // Функция для загрузки следующих порций данных
-  const loadMoreDates = useCallback(() => {
-    if (isLoading || visibleDatesCount >= uniqueDates.length) return;
+  const loadMoreOperations = useCallback(() => {
+    if (isLoading || visibleOperationsCount >= groupedOperations.length) return;
     
     setIsLoading(true);
     
     // Имитация задержки загрузки для плавности
     setTimeout(() => {
-      setVisibleDatesCount(prev => Math.min(prev + 10, uniqueDates.length));
+      setVisibleOperationsCount(prev => Math.min(prev + 10, groupedOperations.length));
       setIsLoading(false);
     }, 300);
-  }, [isLoading, visibleDatesCount, uniqueDates.length]);
+  }, [isLoading, visibleOperationsCount, groupedOperations.length]);
 
   // Обработчик пересечения для бесконечной прокрутки
   const handleIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
     if (entries[0].isIntersecting) {
-      loadMoreDates();
+      loadMoreOperations();
     }
-  }, [loadMoreDates]);
+  }, [loadMoreOperations]);
 
   // Настройка IntersectionObserver
   useEffect(() => {
@@ -132,8 +123,8 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       threshold: 0.1
     });
 
-    if (lastDateElementRef.current) {
-      observer.current.observe(lastDateElementRef.current);
+    if (lastElementRef.current) {
+      observer.current.observe(lastElementRef.current);
     }
 
     return () => {
@@ -141,7 +132,7 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
         observer.current.disconnect();
       }
     };
-  }, [handleIntersect, visibleDates]);
+  }, [handleIntersect, visibleOperations]);
 
   return (
     <Box>
@@ -150,84 +141,73 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       </Typography>
       
       {/* Результаты */}
-      {visibleDates.length > 0 ? (
-        <Box sx={{ maxHeight: '500px', overflow: 'auto' }}>
-          {visibleDates.map((date, index) => {
-            // Получаем операции для текущей даты
-            const dateOperations = groupedResults[date];
-            
-            // Пропускаем даты без результатов
-            if (!dateOperations || Object.keys(dateOperations).length === 0) return null;
-            
-            // Определяем, является ли это последним элементом
-            const isLastItem = index === visibleDates.length - 1;
-            
-            return (
-              <Box 
-                key={date} 
-                sx={{ px: 3, pb: 2 }}
-                ref={isLastItem ? lastDateElementRef : null}
-              >
-                <Typography variant="h6" sx={{ mb: 1, mt: 2 }}>
-                  {formatDate(date)}
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Начало операции</TableCell>
-                        <TableCell>Конец операции</TableCell>
-                        <TableCell>Смена</TableCell>
-                        <TableCell align="right">Часы в смене</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {Object.values(dateOperations).map((groupedOp) => {
-                        return (
-                          <TableRow key={groupedOp.operationId}>
-                            <TableCell>
-                              {formatDate(groupedOp.startDate)} {groupedOp.startTime}
-                            </TableCell>
-                            <TableCell>
-                              {groupedOp.endDate 
-                                ? `${formatDate(groupedOp.endDate)} ${groupedOp.endTime || ''}`
-                                : 'В процессе'}
-                            </TableCell>
-                            <TableCell>
-                              {groupedOp.shifts.map(shift => (
-                                <span 
-                                  key={shift.shiftId}
-                                  style={{ 
-                                    margin: '0 4px 4px 0',
-                                    display: 'inline-block',
-                                    padding: '2px 8px',
-                                    borderRadius: '16px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 'bold',
-                                    border: '1px solid #1976d2',
-                                    color: '#1976d2'
-                                  }}
-                                >
-                                  {shift.shiftStart} - {shift.shiftEnd}
-                                </span>
-                              ))}
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography variant="body2" fontWeight="bold">
-                                {formatHoursAndMinutes(groupedOp.totalMinutes)}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            );
-          })}
+      {groupedOperations.length > 0 ? (
+        <Box sx={{ maxHeight: '500px', overflow: 'auto', px: 3 }}>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Даты операции</TableCell>
+                  <TableCell>Смены</TableCell>
+                  <TableCell align="right">Всего часов</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {visibleOperations.map((operation, index) => {
+                  // Определяем, является ли это последним элементом
+                  const isLastItem = index === visibleOperations.length - 1;
+                  
+                  // Проверяем, длится ли операция более одного дня
+                  const isMultiDay = operation.startDate !== operation.endDate;
+                  
+                  return (
+                    <TableRow 
+                      key={operation.operationId}
+                      sx={isLastItem ? { '&:last-child td, &:last-child th': { border: 0 } } : {}}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="medium">
+                          {formatDate(operation.startDate)}
+                          {isMultiDay && (
+                            <> - {formatDate(operation.endDate)}</>
+                          )}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {operation.shifts.map((shift, idx) => (
+                          <span 
+                            key={`${shift.shiftId}-${idx}`}
+                            style={{ 
+                              margin: '0 4px 4px 0',
+                              display: 'inline-block',
+                              padding: '2px 8px',
+                              borderRadius: '16px',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold',
+                              border: '1px solid #1976d2',
+                              color: '#1976d2'
+                            }}
+                          >
+                            {shift.shiftStart} - {shift.shiftEnd}
+                          </span>
+                        ))}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight="bold" color="primary.main">
+                          {formatHoursAndMinutes(operation.totalMinutes)}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          
+          {/* Элемент для отслеживания прокрутки */}
+          {visibleOperations.length > 0 && (
+            <Box ref={lastElementRef} sx={{ height: 5, width: '100%' }} />
+          )}
           
           {/* Индикатор загрузки */}
           {isLoading && (
@@ -237,7 +217,7 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
           )}
           
           {/* Сообщение о конце списка */}
-          {!isLoading && visibleDatesCount >= uniqueDates.length && uniqueDates.length > 0 && (
+          {!isLoading && visibleOperationsCount >= groupedOperations.length && groupedOperations.length > 0 && (
             <Typography 
               variant="body2" 
               color="text.secondary" 
