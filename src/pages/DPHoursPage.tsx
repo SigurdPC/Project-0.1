@@ -1,39 +1,25 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
-  Container, Typography, Box, Paper, TextField, 
-  Button, Tabs, Tab, List, ListItem, ListItemText, 
-  Alert, CircularProgress, TablePagination, InputAdornment,
-  Collapse, Snackbar, Chip, Divider, IconButton
+  Container, Typography, Box, Paper, 
+  Tabs, Tab, 
+  Alert, CircularProgress, Snackbar
 } from '@mui/material';
 import { 
   Today as TodayIcon,
-  Timeline as TimelineIcon,
-  Add as AddIcon,
-  KeyboardArrowDown as KeyboardArrowDownIcon,
-  KeyboardArrowUp as KeyboardArrowUpIcon,
-  Search as SearchIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon
+  Timeline as TimelineIcon
 } from '@mui/icons-material';
-import dphoursApi from '../api/dphoursApi';
-import Timeline from '../components/dphours/Timeline';
 import { 
   ComplexAddDialog, 
   EditLocationDialog, 
-  EditOperationDialog
+  EditOperationDialog 
 } from '../components/dphours/Dialogs';
 import { 
   DPHours, 
-  OperationType, 
-  SnackbarState, 
   ComplexAddState,
-  LocationEditData,
-  operationColors
+  LocationEditData
 } from '../components/dphours/types';
 import { 
-  formatDate, 
-  parseUserDateInput, 
-  formatDuration
+  parseUserDateInput
 } from '../components/dphours/utils';
 
 // Импорт компонентов
@@ -54,20 +40,19 @@ const DPHoursPage = () => {
   
   const {
     searchQuery, setSearchQuery,
-    getEventsForDate, getFilteredEventsForDate,
-    getUniqueLocationsForDate, getFilteredDatesWithEvents,
-    getPaginatedItems, getEventsForToday, getDatesWithEvents
+    getFilteredEventsForDate,
+    getFilteredDatesWithEvents,
+    getPaginatedItems, getEventsForToday,
   } = useEventFilters();
   
   const {
     getGroupedEventsForDate,
-    getFilteredLocationsForDate,
-    getFilteredEventsForLocation
+    getFilteredLocationsForDate
   } = useEventGroups();
 
   // Состояние вкладок и UI
   const [tabValue, setTabValue] = useState<number>(0);
-  const [selectedDate, setSelectedDate] = useState<string>(
+  const [selectedDate] = useState<string>(
     new Date().toISOString().split('T')[0] // current date by default
   );
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
@@ -75,9 +60,8 @@ const DPHoursPage = () => {
   // Пагинация для истории
   const [historyPage, setHistoryPage] = useState(1);
   const [historyRowsPerPage, setHistoryRowsPerPage] = useState(10);
-
+  
   // Состояние диалогов
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isLocationEditDialogOpen, setIsLocationEditDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   
@@ -96,10 +80,6 @@ const DPHoursPage = () => {
     return getEventsForToday(data, selectedDate);
   }, [data, selectedDate, getEventsForToday]);
   
-  const datesWithEvents = useMemo(() => {
-    return getDatesWithEvents(data);
-  }, [data, getDatesWithEvents]);
-  
   const filteredDatesWithEvents = useMemo(() => {
     return getFilteredDatesWithEvents(data);
   }, [data, getFilteredDatesWithEvents]);
@@ -111,7 +91,7 @@ const DPHoursPage = () => {
   // Обработчики взаимодействий с интерфейсом
   
   // Переключение вкладок
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
   
@@ -123,7 +103,7 @@ const DPHoursPage = () => {
       setExpandedDate(date);
     }
   };
-  
+
   // Обработчик поиска
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
@@ -132,7 +112,7 @@ const DPHoursPage = () => {
   };
   
   // Обработчики пагинации
-  const handleHistoryPageChange = (event: unknown, newPage: number) => {
+  const handleHistoryPageChange = (_: unknown, newPage: number) => {
     setHistoryPage(newPage + 1);
   };
 
@@ -140,7 +120,7 @@ const DPHoursPage = () => {
     setHistoryRowsPerPage(parseInt(event.target.value, 10));
     setHistoryPage(1);
   };
-
+  
   // Функции для работы с операциями DP
 
   // Открытие диалога комплексного добавления
@@ -342,7 +322,7 @@ const DPHoursPage = () => {
       const success = await deleteMultipleEvents(eventIds);
       
       if (success) {
-        showSnackbar('Локация успешно удалена', 'success');
+      showSnackbar('Локация успешно удалена', 'success');
       } else {
         showSnackbar('Не удалось удалить все операции', 'error');
       }
@@ -388,14 +368,14 @@ const DPHoursPage = () => {
       for (const event of sortedEvents) {
         const eventId = event.id;
         const isNewRecord = !eventId || String(eventId).startsWith('temp-');
-        
+          
         const eventData = {
           date: locationEditData.date,
           time: event.time,
           location: locationEditData.newLocation,
           operationType: event.operationType
         };
-        
+          
         if (isNewRecord) {
           await addEvent(eventData);
         } else {
@@ -415,19 +395,6 @@ const DPHoursPage = () => {
     }
   };
 
-  // Основной компонент: обработчик редактирования записи
-  const handleEditOperation = (operation: DPHours) => {
-    setEditFormData({
-      id: operation.id,
-      date: operation.date,
-      location: operation.location,
-      time: operation.time,
-      operationType: operation.operationType
-    });
-    
-    setIsEditDialogOpen(true);
-  };
-
   // Обработчик сохранения изменений отдельной записи
   const handleSaveEdit = async () => {
     if (!editFormData?.id) return;
@@ -436,9 +403,9 @@ const DPHoursPage = () => {
       const success = await updateEvent(editFormData.id, editFormData);
       
       if (success) {
-        setIsEditDialogOpen(false);
-        setEditFormData(null);
-        showSnackbar('Operation updated successfully', 'success');
+      setIsEditDialogOpen(false);
+      setEditFormData(null);
+      showSnackbar('Operation updated successfully', 'success');
       } else {
         showSnackbar('Failed to update operation', 'error');
       }
@@ -458,13 +425,13 @@ const DPHoursPage = () => {
       const success = await deleteEvent(id);
       
       if (success) {
-        // Если открыт диалог редактирования, закрываем его
+      // Если открыт диалог редактирования, закрываем его
         if (editFormData?.id === id) {
-          setIsEditDialogOpen(false);
-          setEditFormData(null);
-        }
-        
-        showSnackbar('Operation deleted successfully', 'success');
+        setIsEditDialogOpen(false);
+        setEditFormData(null);
+      }
+      
+      showSnackbar('Operation deleted successfully', 'success');
       } else {
         showSnackbar('Failed to delete operation', 'error');
       }
@@ -597,7 +564,7 @@ const DPHoursPage = () => {
           selectedDate={selectedDate}
           onOpenComplexAdd={handleOpenComplexAdd}
           onEdit={updateEvent}
-          onEditLocation={handleEditLocation}
+          onEditLocation={handleEditLocation}  
           onDeleteLocation={handleDeleteLocationAdapter}
         />
       )}

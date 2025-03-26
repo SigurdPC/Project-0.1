@@ -15,8 +15,6 @@ import {
   Timeline as TimelineIcon 
 } from '@mui/icons-material';
 import DataTable, { Column } from '../components/DataTable';
-import SimpleDataTable from '../components/SimpleDataTable';
-import DataTableWithSearch from '../components/DataTableWithSearch';
 import { BunkeringOperation as BunkeringOperationType, FuelType } from '../types';
 import bunkeringOperationsApi from '../api/bunkeringOperationsApi';
 import { formatDate } from '../utils/dateUtils';
@@ -95,7 +93,7 @@ const BunkeringOperation = () => {
   };
 
   // Switch between tabs
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
