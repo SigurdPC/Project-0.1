@@ -13,15 +13,6 @@ export interface SnackbarState {
   severity: 'success' | 'error' | 'info' | 'warning';
 }
 
-// Состояние для фильтрации по дате
-export interface DateRangeState {
-  start: string;
-  end: string;
-  startTime: string;
-  endTime: string;
-  useTimeFilter: boolean;
-}
-
 // Состояние для комплексного добавления
 export interface ComplexAddState {
   open: boolean;
