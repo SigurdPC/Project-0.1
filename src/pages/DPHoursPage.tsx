@@ -369,16 +369,16 @@ const DPHoursPage = () => {
         const eventId = event.id;
         const isNewRecord = !eventId || String(eventId).startsWith('temp-');
           
-        const eventData = {
-          date: locationEditData.date,
-          time: event.time,
-          location: locationEditData.newLocation,
+          const eventData = {
+            date: locationEditData.date,
+            time: event.time,
+            location: locationEditData.newLocation,
           operationType: event.operationType
         };
           
-        if (isNewRecord) {
+          if (isNewRecord) {
           await addEvent(eventData);
-        } else {
+          } else {
           await updateEvent(eventId, eventData);
         }
       }
@@ -564,9 +564,9 @@ const DPHoursPage = () => {
           selectedDate={selectedDate}
           onOpenComplexAdd={handleOpenComplexAdd}
           onEdit={updateEvent}
-          onEditLocation={handleEditLocation}  
+              onEditLocation={handleEditLocation}  
           onDeleteLocation={handleDeleteLocationAdapter}
-        />
+            />
       )}
       
       {/* Content for "History" tab */}
@@ -578,10 +578,10 @@ const DPHoursPage = () => {
           expandedDate={expandedDate}
           onToggleDateExpansion={toggleDateExpansion}
           filteredDates={filteredDatesWithEvents}
-          page={historyPage - 1}
-          rowsPerPage={historyRowsPerPage}
+                page={historyPage - 1}
+                rowsPerPage={historyRowsPerPage}
           onPageChange={handleHistoryPageChange}
-          onRowsPerPageChange={handleHistoryRowsPerPageChange}
+                onRowsPerPageChange={handleHistoryRowsPerPageChange}
           getFilteredEventsForDate={(date) => getFilteredEventsForDate(date, data)}
           getFilteredLocationsForDate={getFilteredLocationsHandler}
           getGroupedEventsForDate={getGroupedEventsHandler}

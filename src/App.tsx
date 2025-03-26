@@ -7,6 +7,7 @@ import DPHoursPage from './pages/DPHoursPage';
 import BunkeringOperation from './pages/BunkeringOperation';
 import DailyEvents from './pages/DailyEvents';
 import DailyROB from './pages/DailyROB';
+import DPTimePage from './pages/DPTimePage';
 
 // Создаем тему Material UI
 const theme = createTheme({
@@ -31,6 +32,7 @@ function App() {
           <Route path="/daily-events" element={<DailyEvents />} />
           <Route path="/daily-rob" element={<DailyROB />} />
           <Route path="/dphours" element={<DPHoursPage />} />
+          <Route path="/dptime" element={<DPTimePage />} />
           <Route path="/" element={<DPHoursPage />} />
         </Routes>
       </Router>

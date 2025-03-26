@@ -63,4 +63,43 @@ export interface LocationEditData {
   oldLocation: string;
   newLocation: string;
   events: DPHours[];
+}
+
+// Интерфейс для рабочей смены в DPTime
+export interface Shift {
+  id: string; 
+  startTime: string; // формат HH:MM
+  endTime: string;   // формат HH:MM
+  isOvernight: boolean; // признак ночной смены (если startTime > endTime)
+}
+
+// Интерфейс для операции DP с рассчитанным временем
+export interface DPTimeOperation {
+  id: string;
+  startDate: string;
+  startTime: string;
+  endDate: string | null;
+  endTime: string | null;
+  location: string;
+  totalDuration: number; // общая продолжительность в минутах
+}
+
+// Результат расчета времени по дням и сменам
+export interface TimeCalculationResult {
+  operationId: string;
+  date: string;
+  shiftId: string;
+  shiftStart: string;
+  shiftEnd: string;
+  minutesInShift: number; // минуты работы в данной смене
+  hoursInShift: number;   // часы работы в данной смене (с десятичной частью)
+  startTime: string | null; // время начала работы в смене
+  endTime: string | null;   // время окончания работы в смене
+}
+
+// Настройки расчета времени
+export interface TimeCalculationSettings {
+  startDate: string;
+  endDate: string;
+  shifts: Shift[];
 } 
