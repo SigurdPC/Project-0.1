@@ -12,14 +12,14 @@ interface DPTimeResultsProps {
   onBack: () => void;
 }
 
-// Вспомогательная функция для форматирования часов и минут
+// Helper function to format hours and minutes
 const formatHoursAndMinutes = (minutes: number): string => {
   const hours = Math.floor(minutes / 60);
   const mins = Math.round(minutes % 60);
-  return `${hours}ч ${mins}м`;
+  return `${hours}h ${mins}m`;
 };
 
-// Тип для группировки данных по операциям (вместо дней)
+// Type for grouping data by operations (instead of days)
 interface OperationGroup {
   startDate: string;
   endDate: string;
@@ -35,25 +35,25 @@ interface OperationGroup {
 const DPTimeResults: React.FC<DPTimeResultsProps> = ({ 
   results, operations
 }) => {
-  // Состояние для бесконечной прокрутки
+  // State for infinite scrolling
   const [visibleOperationsCount, setVisibleOperationsCount] = useState<number>(10);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
 
-  // Группируем результаты по операциям, а не по дням
+  // Group results by operations, not by days
   const groupedOperations = useMemo(() => {
-    // Сначала создадим словарь операций по ID
+    // First create a dictionary of operations by ID
     const operationsMap: Record<string, OperationGroup> = {};
     
-    // Проходим по всем результатам
+    // Process all results
     results.forEach(result => {
       const { operationId, date, shiftId, shiftStart, shiftEnd, minutesInShift } = result;
       const operation = operations.find(op => op.id === operationId);
       
       if (!operation) return;
       
-      // Если операции еще нет в словаре, создаем её
+      // If the operation doesn't exist in the dictionary yet, create it
       if (!operationsMap[operationId]) {
         operationsMap[operationId] = {
           startDate: operation.startDate,
@@ -64,7 +64,7 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
         };
       }
       
-      // Добавляем информацию о смене, если такой еще нет
+      // Add shift information if it doesn't exist yet
       const shiftExists = operationsMap[operationId].shifts.some(
         s => s.shiftId === shiftId && s.shiftStart === shiftStart && s.shiftEnd === shiftEnd
       );
@@ -77,42 +77,42 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
         });
       }
       
-      // Увеличиваем общее время операции
+      // Increase the total operation time
       operationsMap[operationId].totalMinutes += minutesInShift;
     });
     
-    // Преобразуем словарь в массив и сортируем по дате начала
+    // Convert dictionary to array and sort by start date
     return Object.values(operationsMap).sort((a, b) => 
       a.startDate > b.startDate ? 1 : a.startDate < b.startDate ? -1 : 0
     );
   }, [results, operations]);
 
-  // Видимые операции для бесконечной прокрутки
+  // Visible operations for infinite scrolling
   const visibleOperations = useMemo(() => {
     return groupedOperations.slice(0, visibleOperationsCount);
   }, [groupedOperations, visibleOperationsCount]);
 
-  // Функция для загрузки следующих порций данных
+  // Function to load next batch of data
   const loadMoreOperations = useCallback(() => {
     if (isLoading || visibleOperationsCount >= groupedOperations.length) return;
     
     setIsLoading(true);
     
-    // Имитация задержки загрузки для плавности
+    // Simulate loading delay for smoothness
     setTimeout(() => {
       setVisibleOperationsCount(prev => Math.min(prev + 10, groupedOperations.length));
       setIsLoading(false);
     }, 300);
   }, [isLoading, visibleOperationsCount, groupedOperations.length]);
 
-  // Обработчик пересечения для бесконечной прокрутки
+  // Intersection handler for infinite scrolling
   const handleIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
     if (entries[0].isIntersecting) {
       loadMoreOperations();
     }
   }, [loadMoreOperations]);
 
-  // Настройка IntersectionObserver
+  // Setup IntersectionObserver
   useEffect(() => {
     if (observer.current) {
       observer.current.disconnect();
@@ -137,27 +137,27 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
   return (
     <Box>
       <Typography variant="h5" sx={{ p: 3, pb: 1 }}>
-        Результаты расчета
+        Calculation Results
       </Typography>
       
-      {/* Результаты */}
+      {/* Results */}
       {groupedOperations.length > 0 ? (
         <Box sx={{ maxHeight: '500px', overflow: 'auto', px: 3 }}>
           <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Даты операции</TableCell>
-                  <TableCell>Смены</TableCell>
-                  <TableCell align="right">Всего часов</TableCell>
+                  <TableCell>Operation Dates</TableCell>
+                  <TableCell>Shifts</TableCell>
+                  <TableCell align="right">Total Hours</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {visibleOperations.map((operation, index) => {
-                  // Определяем, является ли это последним элементом
+                  // Determine if this is the last item
                   const isLastItem = index === visibleOperations.length - 1;
                   
-                  // Проверяем, длится ли операция более одного дня
+                  // Check if operation lasts more than one day
                   const isMultiDay = operation.startDate !== operation.endDate;
                   
                   return (
@@ -204,32 +204,32 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
             </Table>
           </TableContainer>
           
-          {/* Элемент для отслеживания прокрутки */}
+          {/* Element for tracking scrolling */}
           {visibleOperations.length > 0 && (
             <Box ref={lastElementRef} sx={{ height: 5, width: '100%' }} />
           )}
           
-          {/* Индикатор загрузки */}
+          {/* Loading indicator */}
           {isLoading && (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
               <CircularProgress size={30} />
             </Box>
           )}
           
-          {/* Сообщение о конце списка */}
+          {/* End of list message */}
           {!isLoading && visibleOperationsCount >= groupedOperations.length && groupedOperations.length > 0 && (
             <Typography 
               variant="body2" 
               color="text.secondary" 
               sx={{ py: 2, textAlign: 'center' }}
             >
-              Конец списка
+              End of list
             </Typography>
           )}
         </Box>
       ) : (
         <Typography variant="body1" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-          Нет результатов для отображения
+          No results to display
         </Typography>
       )}
     </Box>

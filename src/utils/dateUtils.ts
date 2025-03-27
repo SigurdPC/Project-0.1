@@ -10,32 +10,32 @@ export const formatDate = (dateStr: string): string => {
 };
 
 /**
- * Преобразует пользовательский ввод dd/mm/yyyy в yyyy-mm-dd
- * @param value Строка даты в пользовательском формате
- * @returns Строка даты в формате ISO
+ * Parses a date from user input (prioritizes the DD/MM/YYYY format)
  */
-export const parseUserDateInput = (value: string): string => {
-  // Проверяем, соответствует ли ввод формату dd/mm/yyyy (приоритетный формат)
-  const ddmmyyyySlashRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-  // Проверяем, соответствует ли ввод формату dd.mm.yyyy (для обратной совместимости)
-  const ddmmyyyyDotRegex = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/;
-  
-  // Сначала проверяем формат со слешами
-  let match = value.match(ddmmyyyySlashRegex);
-  if (match) {
-    const [_, day, month, year] = match;
-    // Преобразуем в формат yyyy-mm-dd
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+export const parseUserDateInput = (dateStr: string): string => {
+  // If the string is already in YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
   }
   
-  // Затем проверяем формат с точками для обратной совместимости
-  match = value.match(ddmmyyyyDotRegex);
+  // Check DD/MM/YYYY format (priority format)
+  let match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (match) {
-    const [_, day, month, year] = match;
-    // Преобразуем в формат yyyy-mm-dd
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    const year = match[3];
+    return `${year}-${month}-${day}`;
   }
   
-  // Если не соответствует никакому формату, возвращаем как есть
-  return value;
+  // For backward compatibility, check DD.MM.YYYY format
+  match = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    const year = match[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // If the format is not recognized, return the original string
+  return dateStr;
 }; 

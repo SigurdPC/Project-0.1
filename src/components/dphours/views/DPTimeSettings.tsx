@@ -30,18 +30,18 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
   onDeleteShift,
   onCalculate
 }) => {
-  // Проверка валидности настроек перед расчетом
+  // Validation check before calculation
   const isValid = (): boolean => {
     if (!settings.startDate || !settings.endDate) {
       return false;
     }
     
-    // Проверяем, что конечная дата не раньше начальной
+    // Check that end date is not earlier than start date
     if (settings.startDate > settings.endDate) {
       return false;
     }
     
-    // Проверяем, что все смены имеют начало и конец
+    // Check that all shifts have start and end times
     return settings.shifts.every(shift => 
       shift.startTime && 
       shift.endTime && 
@@ -53,25 +53,25 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
   return (
     <Paper sx={{ p: 3, mb: 3 }}>
       <Typography variant="h5" gutterBottom>
-        Настройки расчета
+        Calculation Settings
       </Typography>
       
-      {/* Ошибки */}
+      {/* Errors */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
       
-      {/* Диапазон дат */}
+      {/* Date Range */}
       <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-        Диапазон дат
+        Date Range
       </Typography>
       
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6}>
           <AppDatePicker
-            label="Начальная дата"
+            label="Start Date"
             value={settings.startDate}
             onChange={(date) => onStartDateChange(date || '')}
             fullWidth
@@ -79,7 +79,7 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
         </Grid>
         <Grid item xs={12} sm={6}>
           <AppDatePicker
-            label="Конечная дата"
+            label="End Date"
             value={settings.endDate}
             onChange={(date) => onEndDateChange(date || '')}
             fullWidth
@@ -87,7 +87,7 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
         </Grid>
       </Grid>
       
-      {/* Настройка смен */}
+      {/* Shift Settings */}
       <ShiftInput
         shifts={settings.shifts}
         onAddShift={onAddShift}
@@ -95,7 +95,7 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
         onDeleteShift={onDeleteShift}
       />
       
-      {/* Кнопка расчета */}
+      {/* Calculate Button */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
         <Button
           variant="contained"
@@ -105,7 +105,7 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
           size="large"
           sx={{ minWidth: 150 }}
         >
-          {loading ? <CircularProgress size={24} /> : 'Рассчитать'}
+          {loading ? <CircularProgress size={24} /> : 'Calculate'}
         </Button>
       </Box>
     </Paper>

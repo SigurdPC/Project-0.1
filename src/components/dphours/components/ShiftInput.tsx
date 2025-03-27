@@ -15,24 +15,24 @@ interface ShiftInputProps {
 const ShiftInput: React.FC<ShiftInputProps> = ({ 
   shifts, onAddShift, onUpdateShift, onDeleteShift 
 }) => {
-  // Обработчик изменения времени для смены
+  // Handler for time change in a shift
   const handleTimeChange = (id: string, field: 'startTime' | 'endTime', value: string) => {
-    // Проверяем, что введено валидное время
+    // Check if the entered time is valid
     if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(value) || value === '') {
       onUpdateShift(id, field, value);
       
-      // Автоматическое определение типа смены (ночная или дневная)
+      // Automatic determination of shift type (night or day)
       const shift = shifts.find(s => s.id === id);
       if (shift) {
-        // Получаем обновленные значения времени
+        // Get updated time values
         const startTime = field === 'startTime' ? value : shift.startTime;
         const endTime = field === 'endTime' ? value : shift.endTime;
         
-        // Если оба времени валидны, определяем тип смены
+        // If both times are valid, determine the shift type
         if (startTime && endTime && 
             /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(startTime) && 
             /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(endTime)) {
-          // Если время начала больше времени окончания, это ночная смена
+          // If start time is greater than end time, it's a night shift
           const isOvernight = startTime > endTime;
           onUpdateShift(id, 'isOvernight', isOvernight);
         }
@@ -40,16 +40,16 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
     }
   };
 
-  // Функция для форматирования типа смены
+  // Function to format shift type
   const getShiftTypeText = (shift: Shift) => {
     if (!shift.startTime || !shift.endTime) return '';
-    return shift.isOvernight ? '(Ночная смена)' : '(Дневная смена)';
+    return shift.isOvernight ? '(Night Shift)' : '(Day Shift)';
   };
 
   return (
     <Paper sx={{ p: 2, mb: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Рабочие смены
+        Work Shifts
       </Typography>
       
       {shifts.map((shift, index) => (
@@ -64,7 +64,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
           }}
         >
           <TextField
-            label="Начало смены"
+            label="Shift Start"
             value={shift.startTime}
             onChange={(e) => handleTimeChange(shift.id, 'startTime', e.target.value)}
             placeholder="HH:MM"
@@ -74,7 +74,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
             inputProps={{ step: 300 }}
           />
           <TextField
-            label="Конец смены"
+            label="Shift End"
             value={shift.endTime}
             onChange={(e) => handleTimeChange(shift.id, 'endTime', e.target.value)}
             placeholder="HH:MM"
@@ -96,7 +96,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
               onClick={() => onDeleteShift(shift.id)}
               size="small"
               color="error"
-              aria-label="удалить смену"
+              aria-label="delete shift"
             >
               <DeleteIcon />
             </IconButton>
@@ -109,7 +109,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
         onClick={onAddShift}
         sx={{ mt: 1 }}
       >
-        Добавить смену
+        Add Shift
       </Button>
     </Paper>
   );

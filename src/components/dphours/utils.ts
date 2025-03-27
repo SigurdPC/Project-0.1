@@ -1,7 +1,7 @@
 import { DPHours, DPSession, DPTimeOperation, OperationType, Shift, TimeCalculationResult } from './types';
 
 /**
- * Форматирует дату из ISO-формата в более читаемый формат (DD/MM/YYYY)
+ * Formats a date from ISO format to a more readable format (DD/MM/YYYY)
  */
 export const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr);
@@ -12,15 +12,15 @@ export const formatDate = (dateStr: string): string => {
 };
 
 /**
- * Парсит дату из пользовательского ввода (приоритетно поддерживает формат DD/MM/YYYY)
+ * Parses a date from user input (prioritizes the DD/MM/YYYY format)
  */
 export const parseUserDateInput = (dateStr: string): string => {
-  // Если строка уже в формате YYYY-MM-DD
+  // If the string is already in YYYY-MM-DD format
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return dateStr;
   }
   
-  // Проверяем формат DD/MM/YYYY (приоритетный)
+  // Check DD/MM/YYYY format (priority format)
   let match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (match) {
     const day = match[1].padStart(2, '0');
@@ -29,7 +29,7 @@ export const parseUserDateInput = (dateStr: string): string => {
     return `${year}-${month}-${day}`;
   }
   
-  // Для обратной совместимости проверяем формат DD.MM.YYYY
+  // For backward compatibility, check DD.MM.YYYY format
   match = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (match) {
     const day = match[1].padStart(2, '0');
@@ -38,12 +38,12 @@ export const parseUserDateInput = (dateStr: string): string => {
     return `${year}-${month}-${day}`;
   }
   
-  // Если формат не распознан, возвращаем исходную строку
+  // If the format is not recognized, return the original string
   return dateStr;
 };
 
 /**
- * Проверяет, находится ли время в пределах диапазона
+ * Checks if a time is within a specified range
  */
 const isTimeInRange = (
   time: string,
@@ -53,18 +53,18 @@ const isTimeInRange = (
 ): boolean => {
   if (!useTimeFilter) return true;
   
-  // Если начало смены меньше конца смены (обычная смена в течение одного дня)
+  // If start time is less than end time (regular shift within the same day)
   if (startTime <= endTime) {
     return time >= startTime && time <= endTime;
   } 
-  // Если начало смены больше конца смены (ночная смена, пересекающая полночь)
+  // If start time is greater than end time (night shift, crossing midnight)
   else {
     return time >= startTime || time <= endTime;
   }
 };
 
 /**
- * Функция для форматирования длительности в часах и минутах
+ * Function to format duration in hours and minutes
  */
 export const formatDuration = (minutes: number): string => {
   if (minutes === 0) return "In progress";
@@ -75,7 +75,7 @@ export const formatDuration = (minutes: number): string => {
 };
 
 /**
- * Функция расчета времени между DP Setup и DP OFF
+ * Function to calculate time between DP Setup and DP OFF
  */
 export const calculateDPSessions = (
   startDate: string, 
@@ -85,18 +85,18 @@ export const calculateDPSessions = (
   startTime: string = '00:00', 
   endTime: string = '23:59'
 ): DPSession[] => {
-  // Отфильтруем события по указанному диапазону дат
+  // Filter events by the specified date range
   const filteredEvents = data.filter(event => {
-    // Фильтр по диапазону дат
+    // Filter by date range
     const dateInRange = event.date >= startDate && event.date <= endDate;
     
     if (!useTimeFilter) return dateInRange;
     
-    // Проверяем диапазон времени
+    // Check time range
     if (startTime <= endTime) {
       return dateInRange && event.time >= startTime && event.time <= endTime;
     } else {
-      // Для ночной смены, пересекающей полночь
+      // For night shifts crossing midnight
       if (event.time <= endTime) {
         return dateInRange && event.date > startDate;
       } else if (event.time >= startTime) {
@@ -106,7 +106,7 @@ export const calculateDPSessions = (
     }
   });
   
-  // Сортируем события по дате и времени
+  // Sort events by date and time
   const sortedEvents = [...filteredEvents].sort((a, b) => {
     if (a.date === b.date) {
       return a.time.localeCompare(b.time);
@@ -125,33 +125,33 @@ export const calculateDPSessions = (
   
   for (const event of sortedEvents) {
     if (event.operationType === 'DP Setup') {
-      // Если начинается новая сессия DP Setup
+      // If a new DP Setup session starts
       if (currentSession) {
-        // Если предыдущая сессия не завершилась, рассчитываем время до конца смены
+        // If the previous session did not end, calculate time until the end of the shift
         let durationMinutes = 0;
         
         if (useTimeFilter) {
-          // Рассчитываем время до конца смены
+          // Calculate time until the end of the shift
           const sessionStartDateTime = new Date(`${currentSession.startDate}T${currentSession.startTime}`);
           
-          // Создаем дату-время окончания смены в тот же день
+          // Create date-time for the end of the shift on the same day
           let sessionEndDateTime: Date;
           
-          // Если начало смены меньше конца смены - смена заканчивается в тот же день
+          // If start time is less than end time - shift ends on the same day
           if (startTime <= endTime) {
             sessionEndDateTime = new Date(`${currentSession.startDate}T${endTime}`);
           } else {
-            // Ночная смена - заканчивается на следующий день
+            // Night shift - ends on the next day
             const nextDay = new Date(currentSession.startDate);
             nextDay.setDate(nextDay.getDate() + 1);
             const nextDayStr = nextDay.toISOString().split('T')[0];
             sessionEndDateTime = new Date(`${nextDayStr}T${endTime}`);
           }
           
-          // Рассчитываем длительность
+          // Calculate duration
           durationMinutes = Math.floor((sessionEndDateTime.getTime() - sessionStartDateTime.getTime()) / (1000 * 60));
           
-          // Если получается отрицательное время, значит смена уже закончилась
+          // If the result is negative time, then the shift has already ended
           if (durationMinutes < 0) {
             durationMinutes = 0;
           }
@@ -167,14 +167,14 @@ export const calculateDPSessions = (
         });
       }
       
-      // Начинаем новую сессию
+      // Start a new session
       currentSession = {
         startDate: event.date,
         startTime: event.time,
         location: event.location
       };
     } else if (event.operationType === 'DP OFF' && currentSession) {
-      // Завершаем текущую сессию
+      // End the current session
       const startDateTime = new Date(`${currentSession.startDate}T${currentSession.startTime}`);
       const endDateTime = new Date(`${event.date}T${event.time}`);
       const durationMs = endDateTime.getTime() - startDateTime.getTime();
@@ -193,33 +193,33 @@ export const calculateDPSessions = (
     }
   }
   
-  // Если есть незавершенная сессия, добавляем её
+  // If there is an unfinished session, add it
   if (currentSession) {
-    // Рассчитываем время до конца смены
+    // Calculate time until the end of the shift
     let durationMinutes = 0;
     
     if (useTimeFilter) {
-      // Рассчитываем время до конца смены
+      // Calculate time until the end of the shift
       const sessionStartDateTime = new Date(`${currentSession.startDate}T${currentSession.startTime}`);
       
-      // Создаем дату-время окончания смены в тот же день
+      // Create date-time for the end of the shift on the same day
       let sessionEndDateTime: Date;
       
-      // Если начало смены меньше конца смены - смена заканчивается в тот же день
+      // If start time is less than end time - shift ends on the same day
       if (startTime <= endTime) {
         sessionEndDateTime = new Date(`${currentSession.startDate}T${endTime}`);
       } else {
-        // Ночная смена - заканчивается на следующий день
+        // Night shift - ends on the next day
         const nextDay = new Date(currentSession.startDate);
         nextDay.setDate(nextDay.getDate() + 1);
         const nextDayStr = nextDay.toISOString().split('T')[0];
         sessionEndDateTime = new Date(`${nextDayStr}T${endTime}`);
       }
       
-      // Рассчитываем длительность
+      // Calculate duration
       durationMinutes = Math.floor((sessionEndDateTime.getTime() - sessionStartDateTime.getTime()) / (1000 * 60));
       
-      // Если получается отрицательное время, значит смена уже закончилась
+      // If the result is negative time, then the shift has already ended
       if (durationMinutes < 0) {
         durationMinutes = 0;
       }

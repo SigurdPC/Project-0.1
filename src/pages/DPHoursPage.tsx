@@ -616,11 +616,15 @@ const DPHoursPage = () => {
   };
   
   const handleDpTimeAddShift = () => {
+    const startTime = '08:00';
+    const endTime = '20:00';
+    const isOvernight = startTime > endTime;
+    
     const newShift: Shift = {
       id: Date.now().toString(),
-      startTime: '08:00',
-      endTime: '20:00',
-      isOvernight: false
+      startTime,
+      endTime,
+      isOvernight
     };
     
     setDpTimeSettings((prev: DateRange) => ({
@@ -647,7 +651,7 @@ const DPHoursPage = () => {
   
   const handleDpTimeCalculate = () => {
     if (!data) {
-      showSnackbar('Нет данных для расчета', 'warning');
+      showSnackbar('No data available for calculation', 'warning');
       return;
     }
     
@@ -661,9 +665,9 @@ const DPHoursPage = () => {
     setDpTimeResults(results);
     
     if (results.length > 0) {
-      showSnackbar('Расчет успешно выполнен', 'success');
+      showSnackbar('Calculation completed successfully', 'success');
     } else {
-      showSnackbar('Нет результатов для отображения', 'warning');
+      showSnackbar('No results to display', 'warning');
     }
   };
 
@@ -738,7 +742,7 @@ const DPHoursPage = () => {
       {/* Content for "DP Time" tab */}
       {tabValue === 2 && (
         <Box sx={{ my: 2 }}>
-          {/* Блок настроек */}
+          {/* Settings block */}
           <DPTimeSettings 
             settings={dpTimeSettings}
             loading={loading}
@@ -751,11 +755,11 @@ const DPHoursPage = () => {
             onCalculate={handleDpTimeCalculate}
           />
           
-          {/* Блок результатов */}
+          {/* Results block */}
           <DPTimeResults 
             results={dpTimeResults}
             operations={dpTimeOperations}
-            onBack={() => {}} // Пустая функция, так как мы не используем навигацию назад
+            onBack={() => {}} // Empty function as we don't use back navigation
           />
         </Box>
       )}
