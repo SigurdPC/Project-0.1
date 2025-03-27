@@ -24,7 +24,7 @@ import {
   Shift
 } from '../components/dphours/types';
 import { 
-  parseUserDateInput,
+  parseUserDateInput, 
   calculateOperationTimesByShifts,
   getDPTimeOperations
 } from '../components/dphours/utils';
@@ -200,39 +200,39 @@ const DPHoursPage = () => {
     }
     
     if (complexAdd) {
-      setComplexAdd({
-        ...complexAdd,
-        [field]: value
-      });
+    setComplexAdd({
+      ...complexAdd,
+      [field]: value
+    });
     }
   };
   
   // Добавление новой операции в комплексном добавлении
   const handleAddOperation = () => {
     if (complexAdd) {
-      setComplexAdd({
-        ...complexAdd,
-        operations: [
-          ...complexAdd.operations,
-          {
-            id: Date.now().toString(),
-            time: '',
-            operationType: 'DP Setup'
-          }
-        ]
-      });
+    setComplexAdd({
+      ...complexAdd,
+      operations: [
+        ...complexAdd.operations,
+        {
+          id: Date.now().toString(),
+          time: '',
+          operationType: 'DP Setup'
+        }
+      ]
+    });
     }
   };
   
   // Изменение операции в комплексном добавлении
   const handleOperationChange = (id: string, field: 'time' | 'operationType', value: string) => {
     if (complexAdd) {
-      setComplexAdd({
-        ...complexAdd,
-        operations: complexAdd.operations.map(op => 
-          op.id === id ? { ...op, [field]: value } : op
-        )
-      });
+    setComplexAdd({
+      ...complexAdd,
+      operations: complexAdd.operations.map(op => 
+        op.id === id ? { ...op, [field]: value } : op
+      )
+    });
     }
   };
   
@@ -242,10 +242,10 @@ const DPHoursPage = () => {
     if (complexAdd && complexAdd.operations.length <= 1) return;
     
     if (complexAdd) {
-      setComplexAdd({
-        ...complexAdd,
-        operations: complexAdd.operations.filter(op => op.id !== id)
-      });
+    setComplexAdd({
+      ...complexAdd,
+      operations: complexAdd.operations.filter(op => op.id !== id)
+    });
     }
   };
   
@@ -666,7 +666,7 @@ const DPHoursPage = () => {
     
     if (results.length > 0) {
       showSnackbar('Calculation completed successfully', 'success');
-    } else {
+      } else {
       showSnackbar('No results to display', 'warning');
     }
   };
@@ -760,8 +760,8 @@ const DPHoursPage = () => {
             results={dpTimeResults}
             operations={dpTimeOperations}
             onBack={() => {}} // Empty function as we don't use back navigation
-          />
-        </Box>
+              />
+            </Box>
       )}
       
       {/* Dialog for complex adding multiple operations */}
