@@ -5,10 +5,7 @@ import {
   useTheme, alpha
 } from '@mui/material';
 import { 
-  Waves as WavesIcon, 
-  WaterOutlined as WaterIcon,
-  Anchor as AnchorIcon,
-  Timeline as TimelineIcon
+  WaterOutlined as WaterIcon
 } from '@mui/icons-material';
 import { DPTimeOperation, TimeCalculationResult } from '../types';
 import { formatDate } from '../utils';
@@ -354,19 +351,16 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
                 <TableRow>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <TimelineIcon sx={{ mr: 1, fontSize: '1rem' }} />
                       Operation Dates
                     </Box>
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <WavesIcon sx={{ mr: 1, fontSize: '1rem' }} />
                       Shifts
                     </Box>
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                      <AnchorIcon sx={{ mr: 1, fontSize: '1rem' }} />
                       Total Hours
                     </Box>
                   </TableCell>
