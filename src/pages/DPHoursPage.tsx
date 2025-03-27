@@ -16,7 +16,8 @@ import {
 import { 
   DPHours, 
   ComplexAddState,
-  LocationEditData
+  LocationEditData,
+  OperationType
 } from '../components/dphours/types';
 import { 
   parseUserDateInput
@@ -30,6 +31,13 @@ import HistoryView from '../components/dphours/views/HistoryView';
 import { useDataManagement } from '../components/dphours/hooks/useDataManagement';
 import { useEventFilters } from '../components/dphours/hooks/useEventFilters';
 import { useEventGroups } from '../components/dphours/hooks/useEventGroups';
+
+interface Filters {
+  startDate: string;
+  endDate: string;
+  location: string;
+  operationType: OperationType | '';
+}
 
 const DPHoursPage = () => {
   // Хуки управления данными и состоянием
@@ -66,19 +74,24 @@ const DPHoursPage = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   
   // Состояние форм
-  const [complexAdd, setComplexAdd] = useState<ComplexAddState>({
-    open: false,
-    date: new Date().toISOString().split('T')[0],
-    location: '',
-    operations: []
-  });
+  const [complexAdd, setComplexAdd] = useState<ComplexAddState | null>(null);
   const [locationEditData, setLocationEditData] = useState<LocationEditData | null>(null);
   const [editFormData, setEditFormData] = useState<DPHours | null>(null);
+  const [records, setRecords] = useState<DPHours[]>([]);
   
+  // Состояние фильтров
+  const [filters, setFilters] = useState<Filters>({
+    startDate: new Date().toISOString().split('T')[0], // current date by default
+    endDate: new Date().toISOString().split('T')[0],
+    location: '',
+    operationType: ''
+  });
+
   // Мемоизированные данные
   const eventsForSelectedDate = useMemo(() => {
-    return getEventsForToday(data, selectedDate);
-  }, [data, selectedDate, getEventsForToday]);
+    if (!data) return [];
+    return data.filter(event => event.date === selectedDate);
+  }, [data, selectedDate]);
   
   const filteredDatesWithEvents = useMemo(() => {
     return getFilteredDatesWithEvents(data);
@@ -139,10 +152,7 @@ const DPHoursPage = () => {
   
   // Закрытие диалога комплексного добавления
   const handleCloseComplexAdd = () => {
-    setComplexAdd({
-      ...complexAdd,
-      open: false
-    });
+    setComplexAdd(null);
   };
   
   // Изменение даты или локации в комплексном добавлении
@@ -151,52 +161,60 @@ const DPHoursPage = () => {
       value = parseUserDateInput(value);
     }
     
-    setComplexAdd({
-      ...complexAdd,
-      [field]: value
-    });
+    if (complexAdd) {
+      setComplexAdd({
+        ...complexAdd,
+        [field]: value
+      });
+    }
   };
   
   // Добавление новой операции в комплексном добавлении
   const handleAddOperation = () => {
-    setComplexAdd({
-      ...complexAdd,
-      operations: [
-        ...complexAdd.operations,
-        {
-          id: Date.now().toString(),
-          time: '',
-          operationType: 'DP Setup'
-        }
-      ]
-    });
+    if (complexAdd) {
+      setComplexAdd({
+        ...complexAdd,
+        operations: [
+          ...complexAdd.operations,
+          {
+            id: Date.now().toString(),
+            time: '',
+            operationType: 'DP Setup'
+          }
+        ]
+      });
+    }
   };
   
   // Изменение операции в комплексном добавлении
   const handleOperationChange = (id: string, field: 'time' | 'operationType', value: string) => {
-    setComplexAdd({
-      ...complexAdd,
-      operations: complexAdd.operations.map(op => 
-        op.id === id ? { ...op, [field]: value } : op
-      )
-    });
+    if (complexAdd) {
+      setComplexAdd({
+        ...complexAdd,
+        operations: complexAdd.operations.map(op => 
+          op.id === id ? { ...op, [field]: value } : op
+        )
+      });
+    }
   };
   
   // Удаление операции в комплексном добавлении
   const handleRemoveOperation = (id: string) => {
     // Не удаляем, если осталась только одна операция
-    if (complexAdd.operations.length <= 1) return;
+    if (complexAdd && complexAdd.operations.length <= 1) return;
     
-    setComplexAdd({
-      ...complexAdd,
-      operations: complexAdd.operations.filter(op => op.id !== id)
-    });
+    if (complexAdd) {
+      setComplexAdd({
+        ...complexAdd,
+        operations: complexAdd.operations.filter(op => op.id !== id)
+      });
+    }
   };
   
   // Сохранение всех операций из комплексного добавления
   const handleSaveComplexAdd = async () => {
     // Проверка заполнения всех полей
-    if (!complexAdd.date || !complexAdd.location) {
+    if (!complexAdd || !complexAdd.date || !complexAdd.location) {
       showSnackbar('Пожалуйста, введите дату и локацию', 'warning');
       return;
     }
@@ -221,10 +239,7 @@ const DPHoursPage = () => {
         });
       }
       
-      setComplexAdd({
-        ...complexAdd,
-        open: false
-      });
+      setComplexAdd(null);
       
       showSnackbar(`Добавлено ${sortedOperations.length} событий`, 'success');
     } catch (err) {
@@ -523,6 +538,36 @@ const DPHoursPage = () => {
     return getGroupedEventsForDate(date, data);
   };
 
+  // Обработчик изменения даты
+  const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
+    value = parseUserDateInput(value);
+    setFilters((prev: Filters) => ({ ...prev, [field]: value }));
+  };
+
+  // Обработчик добавления записи
+  const handleAddRecord = () => {
+    const newRecord: DPHours = {
+      id: Date.now().toString(),
+      date: new Date().toISOString().split('T')[0],
+      time: '00:00',
+      location: '',
+      operationType: 'DP Setup' as OperationType
+    };
+    setRecords((prev: DPHours[]) => [...prev, newRecord]);
+  };
+
+  // Обработчик изменения значения в таблице
+  const handleCellChange = (id: string, field: keyof DPHours, value: any) => {
+    if (field === 'date') {
+      value = parseUserDateInput(value);
+    }
+    setRecords((prev: DPHours[]) => 
+      prev.map((record: DPHours) => 
+        record.id === id ? { ...record, [field]: value } : record
+      )
+    );
+  };
+
   return (
     <Container sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom>
@@ -592,9 +637,9 @@ const DPHoursPage = () => {
       
       {/* Dialog for complex adding multiple operations */}
       <ComplexAddDialog
-        open={complexAdd.open}
+        open={complexAdd?.open || false}
         loading={loading}
-        complexAdd={complexAdd}
+        complexAdd={complexAdd || { open: false, date: '', location: '', operations: [] }}
         onClose={handleCloseComplexAdd}
         onSave={handleSaveComplexAdd}
         onBaseChange={handleComplexAddBaseChange}

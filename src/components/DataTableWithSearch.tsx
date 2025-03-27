@@ -25,6 +25,7 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
 import { useState, useEffect, useMemo } from 'react';
 import { formatDate as formatDateDisplay, parseUserDateInput } from '../utils/dateUtils';
+import AppDatePicker from './common/AppDatePicker';
 
 export interface Column {
   id: string;
@@ -184,6 +185,19 @@ const DataTableWithSearch = ({ columns, data, onAdd, onEdit, onDelete, title }: 
       );
     }
 
+    if (column.type === 'date') {
+      return (
+        <Box sx={{ mb: 2 }} key={column.id}>
+          <AppDatePicker
+            label={column.label}
+            value={formData[column.id] || null}
+            onChange={(date) => handleChange(column.id, date || '')}
+            fullWidth
+          />
+        </Box>
+      );
+    }
+
     return (
       <TextField
         key={column.id}
@@ -196,25 +210,7 @@ const DataTableWithSearch = ({ columns, data, onAdd, onEdit, onDelete, title }: 
         InputLabelProps={{
           shrink: true,
         }}
-        sx={{ 
-          mb: 2,
-          // Добавляем стили для полей ввода даты, чтобы изменить формат отображения
-          ...(column.type === 'date' && {
-            '& input::-webkit-datetime-edit': {
-              fontFamily: 'inherit',
-            },
-            '& input': {
-              '&:before': {
-                content: 'attr(placeholder)'
-              }
-            }
-          })
-        }}
-        inputProps={{
-          max: column.type === 'date' ? '9999-12-31' : undefined,
-          placeholder: column.type === 'date' ? 'дд.мм.гггг' : undefined
-        }}
-        placeholder={column.type === 'date' ? 'дд.мм.гггг' : undefined}
+        sx={{ mb: 2 }}
       />
     );
   };

@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { Shift, TimeCalculationSettings } from '../types';
 import ShiftInput from '../components/ShiftInput';
+import AppDatePicker from '../../common/AppDatePicker';
 
 interface DPTimeSettingsProps {
   settings: TimeCalculationSettings;
@@ -69,22 +70,18 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
       
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6}>
-          <TextField
+          <AppDatePicker
             label="Начальная дата"
-            type="date"
             value={settings.startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+            onChange={(date) => onStartDateChange(date || '')}
             fullWidth
           />
         </Grid>
         <Grid item xs={12} sm={6}>
-          <TextField
+          <AppDatePicker
             label="Конечная дата"
-            type="date"
             value={settings.endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+            onChange={(date) => onEndDateChange(date || '')}
             fullWidth
           />
         </Grid>

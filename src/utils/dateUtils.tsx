@@ -1,20 +1,26 @@
 /**
- * Форматирует дату из строки ISO формата в формат ДД.ММ.ГГГГ
+ * Форматирует дату из ISO формата (yyyy-mm-dd) в более читаемый формат (DD/MM/YYYY)
  */
 export const formatDate = (dateStr: string): string => {
   if (!dateStr) return '';
   
-  // Проверяем, является ли строка валидной датой
-  if (isNaN(Date.parse(dateStr))) {
+  try {
+    const date = new Date(dateStr);
+    
+    // Проверяем, валидная ли дата
+    if (isNaN(date.getTime())) {
+      return dateStr;
+    }
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  } catch (error) {
+    // В случае ошибки, возвращаем исходную строку
     return dateStr;
   }
-  
-  const date = new Date(dateStr);
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  
-  return `${day}.${month}.${year}`;
 };
 
 /**

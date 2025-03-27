@@ -12,6 +12,7 @@ import {
 } from '@mui/icons-material';
 import { DPHours, OperationType, DPSession, ComplexAddState, LocationEditData } from './types';
 import { formatDate, formatDuration } from './utils';
+import AppDatePicker from '../common/AppDatePicker';
 
 // Props для ComplexAddDialog
 interface ComplexAddDialogProps {
@@ -74,16 +75,11 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
     <DialogContent dividers>
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6}>
-          <TextField
+          <AppDatePicker
             label="Date"
-            type="date"
-            value={complexAdd.date || ''}
-            onChange={(e) => onBaseChange('date', e.target.value)}
+            value={complexAdd.date || null}
+            onChange={(date) => onBaseChange('date', date || '')}
             fullWidth
-            InputLabelProps={{ shrink: true }}
-            inputProps={{
-              placeholder: "дд.мм.гггг"
-            }}
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -214,16 +210,10 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 2, mb: 3 }}>
           <Grid item xs={12} md={6}>
-            <TextField
+            <AppDatePicker
               label="Date"
-              type="date"
-              value={locationEditData?.date || ''}
-              onChange={(e) => onLocationDateChange(e.target.value)}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              inputProps={{
-                placeholder: "дд.мм.гггг"
-              }}
+              value={locationEditData?.date || null}
+              onChange={(date) => onLocationDateChange(date || '')}
               required
               error={!locationEditData?.date}
               helperText={!locationEditData?.date ? "Дата обязательна" : ""}
@@ -363,16 +353,11 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
     <DialogContent>
       <Grid container spacing={2} sx={{ mt: 2 }}>
         <Grid item xs={12} md={6}>
-          <TextField
+          <AppDatePicker
             label="Date"
-            type="date"
-            value={editFormData?.date || ''}
-            onChange={(e) => onFormChange('date', e.target.value)}
+            value={editFormData?.date || null}
+            onChange={(date) => onFormChange('date', date || '')}
             fullWidth
-            InputLabelProps={{ shrink: true }}
-            inputProps={{
-              placeholder: "дд.мм.гггг"
-            }}
           />
         </Grid>
         <Grid item xs={12} md={6}>

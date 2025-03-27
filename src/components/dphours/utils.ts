@@ -1,18 +1,18 @@
 import { DPHours, DPSession, DPTimeOperation, OperationType, Shift, TimeCalculationResult } from './types';
 
 /**
- * Форматирует дату из ISO-формата в более читаемый формат (DD.MM.YYYY)
+ * Форматирует дату из ISO-формата в более читаемый формат (DD/MM/YYYY)
  */
 export const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr);
   const day = date.getDate().toString().padStart(2, '0');
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const year = date.getFullYear();
-  return `${day}.${month}.${year}`;
+  return `${day}/${month}/${year}`;
 };
 
 /**
- * Парсит дату из пользовательского ввода (поддерживает форматы DD.MM.YYYY и YYYY-MM-DD)
+ * Парсит дату из пользовательского ввода (приоритетно поддерживает формат DD/MM/YYYY)
  */
 export const parseUserDateInput = (dateStr: string): string => {
   // Если строка уже в формате YYYY-MM-DD
@@ -20,8 +20,17 @@ export const parseUserDateInput = (dateStr: string): string => {
     return dateStr;
   }
   
-  // Если строка в формате DD.MM.YYYY или DD/MM/YYYY
-  const match = dateStr.match(/^(\d{1,2})[\.\/](\d{1,2})[\.\/](\d{4})$/);
+  // Проверяем формат DD/MM/YYYY (приоритетный)
+  let match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    const year = match[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Для обратной совместимости проверяем формат DD.MM.YYYY
+  match = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (match) {
     const day = match[1].padStart(2, '0');
     const month = match[2].padStart(2, '0');
