@@ -32,6 +32,7 @@ export const DPTimePage = () => {
   const { data, loading, error } = useDataManagement();
   const [results, setResults] = useState<TimeCalculationResult[]>([]);
   const [operations, setOperations] = useState<DPTimeOperation[]>([]);
+  const [resultsCalculated, setResultsCalculated] = useState<boolean>(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
     message: '',
@@ -121,6 +122,7 @@ export const DPTimePage = () => {
     );
     
     setResults(results);
+    setResultsCalculated(true);
     
     if (results.length > 0) {
       setSnackbar({
@@ -183,6 +185,13 @@ export const DPTimePage = () => {
       borderRadius: '8px',
       boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.15)}`,
       border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+    },
+    emptyResultsMessage: {
+      py: 6,
+      px: 3,
+      textAlign: 'center',
+      color: alpha(theme.palette.text.secondary, 0.8),
+      fontStyle: 'italic'
     }
   };
   
@@ -234,34 +243,36 @@ export const DPTimePage = () => {
           <Box sx={maritimeStyles.wavesDecoration} />
         </Paper>
         
-        {/* Блок результатов */}
-        <Paper sx={{ 
-          ...maritimeStyles.paper, 
-          mb: 3,
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: 'linear-gradient(90deg, #1976d2, #64b5f6, #1976d2)'
-          }
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', p: 3, pb: 1 }}>
-            <WavesOutlined color="primary" sx={{ mr: 1 }} />
-            <Typography variant="h5" sx={{ fontWeight: 500 }}>
-              Calculation Results
-            </Typography>
-          </Box>
-          
-          <DPTimeResults 
-            results={results}
-            operations={operations}
-            onBack={() => {}} // Пустая функция, так как мы не используем навигацию назад
-          />
-          <Box sx={maritimeStyles.wavesDecoration} />
-        </Paper>
+        {/* Блок результатов - отображается только если были рассчитаны результаты */}
+        {resultsCalculated && (
+          <Paper sx={{ 
+            ...maritimeStyles.paper, 
+            mb: 3,
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '4px',
+              background: 'linear-gradient(90deg, #1976d2, #64b5f6, #1976d2)'
+            }
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', p: 3, pb: 1 }}>
+              <WavesOutlined color="primary" sx={{ mr: 1 }} />
+              <Typography variant="h5" sx={{ fontWeight: 500 }}>
+                Calculation Results
+              </Typography>
+            </Box>
+            
+            <DPTimeResults 
+              results={results}
+              operations={operations}
+              onBack={() => {}} // Пустая функция, так как мы не используем навигацию назад
+            />
+            <Box sx={maritimeStyles.wavesDecoration} />
+          </Paper>
+        )}
 
         {/* Snackbar для уведомлений */}
         <Snackbar

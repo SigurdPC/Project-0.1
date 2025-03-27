@@ -104,6 +104,7 @@ const DPHoursPage = () => {
   // DP Time состояние
   const [dpTimeResults, setDpTimeResults] = useState<TimeCalculationResult[]>([]);
   const [dpTimeOperations, setDpTimeOperations] = useState<DPTimeOperation[]>([]);
+  const [dpTimeResultsCalculated, setDpTimeResultsCalculated] = useState<boolean>(false);
   const [dpTimeSettings, setDpTimeSettings] = useState<DateRange>({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
@@ -663,10 +664,11 @@ const DPHoursPage = () => {
     );
     
     setDpTimeResults(results);
+    setDpTimeResultsCalculated(true);
     
     if (results.length > 0) {
       showSnackbar('Calculation completed successfully', 'success');
-      } else {
+    } else {
       showSnackbar('No results to display', 'warning');
     }
   };
@@ -755,13 +757,15 @@ const DPHoursPage = () => {
             onCalculate={handleDpTimeCalculate}
           />
           
-          {/* Results block */}
-          <DPTimeResults 
-            results={dpTimeResults}
-            operations={dpTimeOperations}
-            onBack={() => {}} // Empty function as we don't use back navigation
-              />
-            </Box>
+          {/* Results block - отображается только после выполнения расчета */}
+          {dpTimeResultsCalculated && (
+            <DPTimeResults 
+              results={dpTimeResults}
+              operations={dpTimeOperations}
+              onBack={() => {}} // Empty function as we don't use back navigation
+            />
+          )}
+        </Box>
       )}
       
       {/* Dialog for complex adding multiple operations */}
