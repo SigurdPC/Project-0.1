@@ -14,7 +14,7 @@ const Navigation = () => {
       <Container>
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Ship Operations
+            Operations Log
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button 

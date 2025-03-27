@@ -668,7 +668,7 @@ const DPHoursPage = () => {
     
     if (results.length > 0) {
       showSnackbar('Calculation completed successfully', 'success');
-    } else {
+      } else {
       showSnackbar('No results to display', 'warning');
     }
   };
@@ -764,8 +764,8 @@ const DPHoursPage = () => {
               operations={dpTimeOperations}
               onBack={() => {}} // Empty function as we don't use back navigation
             />
-          )}
-        </Box>
+                      )}
+                    </Box>
       )}
       
       {/* Dialog for complex adding multiple operations */}

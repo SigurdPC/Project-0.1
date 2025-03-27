@@ -261,7 +261,7 @@ export const DPTimePage = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', p: 3, pb: 1 }}>
               <WavesOutlined color="primary" sx={{ mr: 1 }} />
               <Typography variant="h5" sx={{ fontWeight: 500 }}>
-                Calculation Results
+                DP Hours Summary
               </Typography>
             </Box>
             

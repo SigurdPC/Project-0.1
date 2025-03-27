@@ -339,7 +339,7 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
   return (
     <Box>
       <Typography variant="h5" sx={{ p: 3, pb: 1 }}>
-        Calculation Results
+        DP Hours Summary
       </Typography>
       
       {/* Results */}
