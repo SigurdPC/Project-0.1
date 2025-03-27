@@ -559,6 +559,15 @@ export const calculateOperationTimesByShifts = (
 
   // Для каждой операции
   operations.forEach(operation => {
+    // Проверяем, попадает ли операция в заданный диапазон дат
+    const operationEndDate = operation.endDate || new Date().toISOString().split('T')[0];
+    const operationStartDate = operation.startDate;
+    
+    // Пропускаем операцию, если она полностью за пределами заданного диапазона
+    if (operationEndDate < startDate || operationStartDate > endDate) {
+      return;
+    }
+    
     // Для каждой даты в заданном диапазоне
     datesInRange.forEach(date => {
       // Для каждой смены рассчитываем время

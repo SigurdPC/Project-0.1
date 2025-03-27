@@ -156,7 +156,7 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
     });
     
     // Convert multi-day operations to array
-    const multiDayArray = Object.values(multiDayOperations);
+    const multiDayArray = Object.values(multiDayOperations).filter(op => op.totalMinutes > 0);
     
     // Convert date groups to array and create simulated operation groups
     const dateArray = Object.values(dateGroups).map(group => ({
