@@ -69,19 +69,6 @@ const Navigation = () => {
             >
               DP Hours
             </Button>
-            <Button 
-              component={RouterLink} 
-              to="/dptime"
-              color="inherit"
-              sx={{ 
-                fontWeight: isActive('/dptime') ? 'bold' : 'normal',
-                borderBottom: isActive('/dptime') ? '2px solid white' : 'none',
-                borderRadius: 0,
-                pb: 0.5
-              }}
-            >
-              DP Time
-            </Button>
           </Box>
         </Toolbar>
       </Container>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Container, Typography, Box, Paper, 
   Tabs, Tab, 
@@ -6,7 +6,8 @@ import {
 } from '@mui/material';
 import { 
   Today as TodayIcon,
-  Timeline as TimelineIcon
+  Timeline as TimelineIcon,
+  AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
 import { 
   ComplexAddDialog, 
@@ -17,15 +18,22 @@ import {
   DPHours, 
   ComplexAddState,
   LocationEditData,
-  OperationType
+  OperationType,
+  TimeCalculationResult,
+  DPTimeOperation,
+  Shift
 } from '../components/dphours/types';
 import { 
-  parseUserDateInput
+  parseUserDateInput,
+  calculateOperationTimesByShifts,
+  getDPTimeOperations
 } from '../components/dphours/utils';
 
 // Импорт компонентов
 import TodayView from '../components/dphours/views/TodayView';
 import HistoryView from '../components/dphours/views/HistoryView';
+import DPTimeSettings from '../components/dphours/views/DPTimeSettings';
+import DPTimeResults from '../components/dphours/views/DPTimeResults';
 
 // Импорт хуков
 import { useDataManagement } from '../components/dphours/hooks/useDataManagement';
@@ -37,6 +45,12 @@ interface Filters {
   endDate: string;
   location: string;
   operationType: OperationType | '';
+}
+
+interface DateRange {
+  startDate: string;
+  endDate: string;
+  shifts: Shift[];
 }
 
 const DPHoursPage = () => {
@@ -86,6 +100,30 @@ const DPHoursPage = () => {
     location: '',
     operationType: ''
   });
+
+  // DP Time состояние
+  const [dpTimeResults, setDpTimeResults] = useState<TimeCalculationResult[]>([]);
+  const [dpTimeOperations, setDpTimeOperations] = useState<DPTimeOperation[]>([]);
+  const [dpTimeSettings, setDpTimeSettings] = useState<DateRange>({
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    shifts: [
+      {
+        id: Date.now().toString(),
+        startTime: '08:00',
+        endTime: '20:00',
+        isOvernight: false
+      }
+    ]
+  });
+
+  // Преобразуем данные в операции для DP Time при их изменении
+  useEffect(() => {
+    if (data) {
+      const operations = getDPTimeOperations(data);
+      setDpTimeOperations(operations);
+    }
+  }, [data]);
 
   // Мемоизированные данные
   const eventsForSelectedDate = useMemo(() => {
@@ -568,6 +606,67 @@ const DPHoursPage = () => {
     );
   };
 
+  // Обработчики для DP Time
+  const handleDpTimeStartDateChange = (date: string) => {
+    setDpTimeSettings((prev: DateRange) => ({ ...prev, startDate: date }));
+  };
+  
+  const handleDpTimeEndDateChange = (date: string) => {
+    setDpTimeSettings((prev: DateRange) => ({ ...prev, endDate: date }));
+  };
+  
+  const handleDpTimeAddShift = () => {
+    const newShift: Shift = {
+      id: Date.now().toString(),
+      startTime: '08:00',
+      endTime: '20:00',
+      isOvernight: false
+    };
+    
+    setDpTimeSettings((prev: DateRange) => ({
+      ...prev,
+      shifts: [...prev.shifts, newShift]
+    }));
+  };
+  
+  const handleDpTimeUpdateShift = (id: string, field: keyof Shift, value: any) => {
+    setDpTimeSettings((prev: DateRange) => ({
+      ...prev,
+      shifts: prev.shifts.map((shift: Shift) => 
+        shift.id === id ? { ...shift, [field]: value } : shift
+      )
+    }));
+  };
+  
+  const handleDpTimeDeleteShift = (id: string) => {
+    setDpTimeSettings((prev: DateRange) => ({
+      ...prev,
+      shifts: prev.shifts.filter((shift: Shift) => shift.id !== id)
+    }));
+  };
+  
+  const handleDpTimeCalculate = () => {
+    if (!data) {
+      showSnackbar('Нет данных для расчета', 'warning');
+      return;
+    }
+    
+    const results = calculateOperationTimesByShifts(
+      dpTimeOperations,
+      dpTimeSettings.startDate,
+      dpTimeSettings.endDate,
+      dpTimeSettings.shifts
+    );
+    
+    setDpTimeResults(results);
+    
+    if (results.length > 0) {
+      showSnackbar('Расчет успешно выполнен', 'success');
+    } else {
+      showSnackbar('Нет результатов для отображения', 'warning');
+    }
+  };
+
   return (
     <Container sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom>
@@ -599,6 +698,7 @@ const DPHoursPage = () => {
         >
           <Tab icon={<TodayIcon />} label="Today" />
           <Tab icon={<TimelineIcon />} label="History" />
+          <Tab icon={<AccessTimeIcon />} label="DP Time" />
         </Tabs>
       </Paper>
       
@@ -633,6 +733,31 @@ const DPHoursPage = () => {
           onEditLocation={handleEditLocation}
           onDeleteLocationEvents={handleDeleteLocationEvents}
         />
+      )}
+      
+      {/* Content for "DP Time" tab */}
+      {tabValue === 2 && (
+        <Box sx={{ my: 2 }}>
+          {/* Блок настроек */}
+          <DPTimeSettings 
+            settings={dpTimeSettings}
+            loading={loading}
+            error={error}
+            onStartDateChange={handleDpTimeStartDateChange}
+            onEndDateChange={handleDpTimeEndDateChange}
+            onAddShift={handleDpTimeAddShift}
+            onUpdateShift={handleDpTimeUpdateShift}
+            onDeleteShift={handleDpTimeDeleteShift}
+            onCalculate={handleDpTimeCalculate}
+          />
+          
+          {/* Блок результатов */}
+          <DPTimeResults 
+            results={dpTimeResults}
+            operations={dpTimeOperations}
+            onBack={() => {}} // Пустая функция, так как мы не используем навигацию назад
+          />
+        </Box>
       )}
       
       {/* Dialog for complex adding multiple operations */}
