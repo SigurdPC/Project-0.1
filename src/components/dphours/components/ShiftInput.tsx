@@ -103,8 +103,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
       '& .MuiOutlinedInput-root': {
         transition: 'all 0.3s ease',
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: `0 3px 5px ${alpha(theme.palette.primary.main, 0.2)}`
+          borderColor: theme.palette.primary.light
         },
         '&:hover fieldset': {
           borderColor: theme.palette.primary.light,
@@ -133,15 +132,12 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
       color: theme.palette.primary.main,
       transition: 'all 0.3s ease',
       '&:hover': {
-        background: alpha(theme.palette.primary.main, 0.1),
-        transform: 'translateY(-2px)',
-        boxShadow: `0 3px 5px ${alpha(theme.palette.primary.main, 0.2)}`
+        background: alpha(theme.palette.primary.main, 0.1)
       }
     },
     deleteIcon: {
       transition: 'all 0.2s ease',
       '&:hover': {
-        transform: 'rotate(90deg)',
         color: theme.palette.error.dark
       }
     }
@@ -170,7 +166,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
             placeholder="HH:MM"
             size="small"
             type="time"
-            sx={{ ...maritimeStyles.timeField, width: 140, mr: 2 }}
+            sx={{ ...maritimeStyles.timeField, width: 200, mr: 2 }}
             inputProps={{ step: 300 }}
           />
           <TextField
@@ -180,7 +176,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
             placeholder="HH:MM"
             size="small"
             type="time"
-            sx={{ ...maritimeStyles.timeField, width: 140, mr: 2 }}
+            sx={{ ...maritimeStyles.timeField, width: 200, mr: 2 }}
             inputProps={{ step: 300 }}
           />
           <Typography 

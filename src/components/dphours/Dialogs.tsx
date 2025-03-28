@@ -88,6 +88,7 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
             value={complexAdd.location || ''}
             onChange={(e) => onBaseChange('location', e.target.value)}
             fullWidth
+            size="small"
             placeholder="Enter location"
             InputLabelProps={{ shrink: true }}
           />
@@ -117,6 +118,7 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
                 value={operation.time || ''}
                 onChange={(e) => onOperationChange(operation.id, 'time', e.target.value)}
                 fullWidth
+                size="small"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -127,6 +129,7 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
                   value={operation.operationType || ''}
                   onChange={(e) => onOperationChange(operation.id, 'operationType', e.target.value)}
                   label="Operation Type"
+                  size="small"
                 >
                   {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
                     <MenuItem key={type} value={type}>{type}</MenuItem>
@@ -134,14 +137,14 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={2}>
+            <Grid item xs={12} sm={1} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <IconButton 
+                size="small"
                 color="error"
                 onClick={() => onRemoveOperation(operation.id)}
                 disabled={complexAdd.operations.length <= 1}
-                sx={{ mt: 1 }}
               >
-                <DeleteIcon />
+                <DeleteIcon fontSize="small" />
               </IconButton>
             </Grid>
           </Grid>
@@ -194,11 +197,16 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
   onDeleteSingleOperation,
   onAddOperation
 }) => {
-  // Проверяем, есть ли пустые поля в операциях
-  const hasEmptyFields = locationEditData?.events.some(
-    event => !event.time || !event.operationType
-  );
-
+  // Sorting events by time for better usability
+  const sortedEvents = locationEditData?.events 
+    ? [...locationEditData.events].sort((a, b) => a.time.localeCompare(b.time)) 
+    : [];
+    
+  // Check if any required fields are empty
+  const hasEmptyFields = locationEditData?.events 
+    ? locationEditData.events.some(event => !event.time || !event.operationType) 
+    : false;
+  
   return (
     <Dialog
       open={open}
@@ -208,38 +216,36 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
     >
       <DialogTitle>Edit Location</DialogTitle>
       <DialogContent>
-        <Grid container spacing={2} sx={{ mt: 2, mb: 3 }}>
-          <Grid item xs={12} md={6}>
-            <AppDatePicker
-              label="Date"
-              value={locationEditData?.date || null}
-              onChange={(date) => onLocationDateChange(date || '')}
-              required
-              error={!locationEditData?.date}
-              helperText={!locationEditData?.date ? "Дата обязательна" : ""}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="New Location"
-              value={locationEditData?.newLocation || ''}
-              onChange={(e) => onLocationNameChange(e.target.value)}
-              fullWidth
-              placeholder="Enter location"
-              required
-              error={!locationEditData?.newLocation}
-              helperText={!locationEditData?.newLocation ? "Название локации обязательно" : ""}
-            />
-          </Grid>
-        </Grid>
-
         {locationEditData && (
           <>
-            <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={6}>
+                <AppDatePicker
+                  label="Date"
+                  value={locationEditData.date || null}
+                  onChange={(date) => onLocationDateChange(date || '')}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Location"
+                  value={locationEditData.newLocation || ''}
+                  onChange={(e) => onLocationNameChange(e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder="Enter location"
+                  required
+                />
+              </Grid>
+            </Grid>
+
+            <Typography variant="h6" gutterBottom>
               Operations
             </Typography>
+            
             <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-              {locationEditData.events.map((event, index) => (
+              {sortedEvents.map((event, index) => (
                 <Grid 
                   container 
                   spacing={2} 
@@ -247,7 +253,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                   sx={{ 
                     mb: 2,
                     pb: 2,
-                    borderBottom: index < locationEditData.events.length - 1 ? '1px dashed #ccc' : 'none'
+                    borderBottom: index < sortedEvents.length - 1 ? '1px dashed #ccc' : 'none'
                   }}
                 >
                   <Grid item xs={12} sm={4}>
@@ -256,30 +262,24 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                       type="time"
                       value={event.time || ''}
                       fullWidth
+                      size="small"
                       InputLabelProps={{ shrink: true }}
                       onChange={(e) => onLocationOperationChange(index, 'time', e.target.value)}
-                      required
-                      error={!event.time}
-                      helperText={!event.time ? "Время обязательно" : ""}
                     />
                   </Grid>
                   <Grid item xs={12} sm={7}>
-                    <FormControl fullWidth required error={!event.operationType}>
+                    <FormControl fullWidth>
                       <InputLabel>Operation Type</InputLabel>
                       <Select
-                        value={event.operationType || ''}
+                        value={event.operationType}
                         label="Operation Type"
                         onChange={(e) => onLocationOperationChange(index, 'operationType', e.target.value as OperationType)}
+                        size="small"
                       >
                         {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
                           <MenuItem key={type} value={type}>{type}</MenuItem>
                         ))}
                       </Select>
-                      {!event.operationType && (
-                        <Typography variant="caption" color="error">
-                          Тип операции обязателен
-                        </Typography>
-                      )}
                     </FormControl>
                   </Grid>
                   <Grid item xs={12} sm={1} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -304,8 +304,8 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                   Add Operation
                 </Button>
               </Box>
-              
             </Paper>
+            
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="body2" color="text.secondary">
                 Total: {locationEditData.events.length} operations
@@ -352,7 +352,7 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
     <DialogTitle>Edit Operation</DialogTitle>
     <DialogContent>
       <Grid container spacing={2} sx={{ mt: 2 }}>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} sm={6}>
           <AppDatePicker
             label="Date"
             value={editFormData?.date || null}
@@ -360,32 +360,35 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
             fullWidth
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} sm={6}>
           <TextField
             label="Time"
             type="time"
             value={editFormData?.time || ''}
             onChange={(e) => onFormChange('time', e.target.value)}
             fullWidth
+            size="small"
             InputLabelProps={{ shrink: true }}
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} sm={6}>
           <TextField
             label="Location"
             value={editFormData?.location || ''}
             onChange={(e) => onFormChange('location', e.target.value)}
             fullWidth
+            size="small"
             placeholder="Enter location"
           />
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} sm={6}>
           <FormControl fullWidth>
             <InputLabel>Operation Type</InputLabel>
             <Select
               value={editFormData?.operationType || ''}
               label="Operation Type"
               onChange={(e) => onFormChange('operationType', e.target.value as OperationType)}
+              size="small"
             >
               {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
                 <MenuItem key={type} value={type}>{type}</MenuItem>

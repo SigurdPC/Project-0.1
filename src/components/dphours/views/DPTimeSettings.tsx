@@ -84,9 +84,7 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
       boxShadow: `0 3px 5px 2px ${alpha(theme.palette.primary.main, 0.3)}`,
       transition: 'all 0.3s ease',
       '&:hover': {
-        background: `linear-gradient(45deg, ${theme.palette.primary.dark} 30%, ${theme.palette.primary.main} 90%)`,
-        transform: 'translateY(-2px)',
-        boxShadow: `0 6px 10px 2px ${alpha(theme.palette.primary.main, 0.3)}`,
+        background: `linear-gradient(45deg, ${theme.palette.primary.dark} 30%, ${theme.palette.primary.main} 90%)`
       }
     }
   };

@@ -13,8 +13,8 @@ const Navigation = () => {
     <AppBar position="static">
       <Container>
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Operations Log
+          <Typography variant="h5" component="div" sx={{ flexGrow: 1, fontWeight: 500 }}>
+            DP Hours Summary
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button 

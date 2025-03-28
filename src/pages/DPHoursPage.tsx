@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { 
   Today as TodayIcon,
-  Timeline as TimelineIcon,
+  MenuBook as MenuBookIcon,
   AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
 import { 
@@ -675,7 +675,7 @@ const DPHoursPage = () => {
 
   return (
     <Container sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h5" gutterBottom align="center">
         DP Hours
       </Typography>
       
@@ -703,7 +703,7 @@ const DPHoursPage = () => {
           centered
         >
           <Tab icon={<TodayIcon />} label="Today" />
-          <Tab icon={<TimelineIcon />} label="History" />
+          <Tab icon={<MenuBookIcon />} label="History" />
           <Tab icon={<AccessTimeIcon />} label="DP Time" />
         </Tabs>
       </Paper>

@@ -13,7 +13,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   searchQuery,
   onSearchChange,
   placeholder = 'Поиск...',
-  width = '250px'
+  width = '200px'
 }) => {
   return (
     <Box>
