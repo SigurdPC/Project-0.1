@@ -77,24 +77,19 @@ const HistoryView: React.FC<HistoryViewProps> = ({
   };
 
   return (
-    <Paper sx={{ p: 2 }}>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6">
-          History
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <SearchBar
-            searchQuery={searchQuery}
-            onSearchChange={onSearchChange}
-            placeholder="Поиск..."
-            width="250px"
-          />
-        </Box>
+    <Paper sx={{ p: 3, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <SearchBar
+          searchQuery={searchQuery}
+          onSearchChange={onSearchChange}
+          placeholder="Поиск..."
+          width="250px"
+        />
       </Box>
       
       {/* Dates with expandable sections */}
       {paginatedDates.length > 0 ? (
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 4 }}>
           {paginatedDates.map(date => (
             <HistoryItem
               key={date}
@@ -109,14 +104,14 @@ const HistoryView: React.FC<HistoryViewProps> = ({
           ))}
         </Box>
       ) : (
-        <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+        <Typography align="center" color="text.secondary" sx={{ py: 6, fontSize: '1.1rem' }}>
           {searchQuery ? 'Нет результатов по вашему запросу' : 'No records found'}
         </Typography>
       )}
       
       {/* Pagination for history */}
       {filteredDates.length > 0 && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
           <TablePagination
             component="div"
             count={filteredDates.length}
@@ -127,6 +122,13 @@ const HistoryView: React.FC<HistoryViewProps> = ({
             rowsPerPageOptions={[5, 10, 25, 50]}
             labelRowsPerPage="на странице:"
             labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
+            sx={{ 
+              '& .MuiTablePagination-toolbar': { 
+                padding: '12px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(0,0,0,0.02)'
+              }
+            }}
           />
         </Box>
       )}

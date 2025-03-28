@@ -1,6 +1,5 @@
 import React from 'react';
 import { Paper, Box, Typography, Button } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
 import Timeline from '../Timeline';
 import { DPHours } from '../types';
 import { formatDate } from '../utils';
@@ -23,22 +22,28 @@ const TodayView: React.FC<TodayViewProps> = ({
   onDeleteLocation
 }) => {
   return (
-    <Paper sx={{ p: 3, mb: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6">
-          Events for Today ({formatDate(selectedDate)})
-        </Typography>
+    <Paper sx={{ p: 4, mb: 3, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Button 
           variant="contained" 
-          startIcon={<AddIcon />} 
           onClick={onOpenComplexAdd}
+          sx={{ 
+            borderRadius: '4px',
+            textTransform: 'uppercase',
+            fontWeight: 500,
+            py: 1
+          }}
         >
-          Add Event
+          ADD NEW
         </Button>
+        
+        <Typography variant="h6" sx={{ fontWeight: 500 }}>
+          {formatDate(selectedDate)}
+        </Typography>
       </Box>
       
       {eventsForSelectedDate.length === 0 ? (
-        <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+        <Typography align="center" color="text.secondary" sx={{ py: 6, fontSize: '1.1rem' }}>
           No events for today
         </Typography>
       ) : (

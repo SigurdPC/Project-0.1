@@ -674,8 +674,8 @@ const DPHoursPage = () => {
   };
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Typography variant="h5" gutterBottom align="center">
+    <Container sx={{ mt: 4, mb: 6 }}>
+      <Typography variant="h5" gutterBottom align="center" sx={{ mb: 3, fontWeight: 500 }}>
         DP Hours
       </Typography>
       
@@ -688,19 +688,26 @@ const DPHoursPage = () => {
       
       {/* Error message */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
           {error}
         </Alert>
       )}
       
       {/* Tabs for switching between modes */}
-      <Paper sx={{ mb: 3 }}>
+      <Paper sx={{ mb: 2, borderRadius: '12px', overflow: 'hidden' }}>
         <Tabs
           value={tabValue}
           onChange={handleTabChange}
           indicatorColor="primary"
           textColor="primary"
           centered
+          sx={{ 
+            '& .MuiTab-root': { 
+              py: 2,
+              fontSize: '0.95rem',
+              minHeight: '56px'
+            }
+          }}
         >
           <Tab icon={<TodayIcon />} label="Today" />
           <Tab icon={<MenuBookIcon />} label="History" />
@@ -729,10 +736,10 @@ const DPHoursPage = () => {
           expandedDate={expandedDate}
           onToggleDateExpansion={toggleDateExpansion}
           filteredDates={filteredDatesWithEvents}
-                page={historyPage - 1}
-                rowsPerPage={historyRowsPerPage}
+          page={historyPage - 1}
+          rowsPerPage={historyRowsPerPage}
           onPageChange={handleHistoryPageChange}
-                onRowsPerPageChange={handleHistoryRowsPerPageChange}
+          onRowsPerPageChange={handleHistoryRowsPerPageChange}
           getFilteredEventsForDate={(date) => getFilteredEventsForDate(date, data)}
           getFilteredLocationsForDate={getFilteredLocationsHandler}
           getGroupedEventsForDate={getGroupedEventsHandler}
@@ -745,27 +752,45 @@ const DPHoursPage = () => {
       {tabValue === 2 && (
         <Box sx={{ my: 2 }}>
           {/* Settings block */}
-          <DPTimeSettings 
-            settings={dpTimeSettings}
-            loading={loading}
-            error={error}
-            onStartDateChange={handleDpTimeStartDateChange}
-            onEndDateChange={handleDpTimeEndDateChange}
-            onAddShift={handleDpTimeAddShift}
-            onUpdateShift={handleDpTimeUpdateShift}
-            onDeleteShift={handleDpTimeDeleteShift}
-            onCalculate={handleDpTimeCalculate}
-          />
+          <Paper sx={{ 
+            p: 4, 
+            mb: 4, 
+            borderRadius: '12px', 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <DPTimeSettings 
+              settings={dpTimeSettings}
+              loading={loading}
+              error={error}
+              onStartDateChange={handleDpTimeStartDateChange}
+              onEndDateChange={handleDpTimeEndDateChange}
+              onAddShift={handleDpTimeAddShift}
+              onUpdateShift={handleDpTimeUpdateShift}
+              onDeleteShift={handleDpTimeDeleteShift}
+              onCalculate={handleDpTimeCalculate}
+            />
+                </Paper>
           
           {/* Results block - отображается только после выполнения расчета */}
           {dpTimeResultsCalculated && (
-            <DPTimeResults 
-              results={dpTimeResults}
-              operations={dpTimeOperations}
-              onBack={() => {}} // Empty function as we don't use back navigation
-            />
-                      )}
-                    </Box>
+            <Paper sx={{ 
+              p: 4, 
+              mb: 3, 
+              borderRadius: '12px', 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <DPTimeResults 
+                results={dpTimeResults}
+                operations={dpTimeOperations}
+                onBack={() => {}} // Empty function as we don't use back navigation
+              />
+        </Paper>
+          )}
+        </Box>
       )}
       
       {/* Dialog for complex adding multiple operations */}
@@ -813,7 +838,7 @@ const DPHoursPage = () => {
         onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>

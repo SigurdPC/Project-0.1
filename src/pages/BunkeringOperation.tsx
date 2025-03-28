@@ -150,8 +150,8 @@ const BunkeringOperation = () => {
   };
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom>
+    <Container sx={{ mt: 4, mb: 6 }}>
+      <Typography variant="h5" gutterBottom align="center" sx={{ mb: 3, fontWeight: 500 }}>
         Bunkering Operation
       </Typography>
       
@@ -164,19 +164,26 @@ const BunkeringOperation = () => {
       
       {/* Error message */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
           {error}
         </Alert>
       )}
       
       {/* Tabs for switching between modes */}
-      <Paper sx={{ mb: 3 }}>
+      <Paper sx={{ mb: 2, borderRadius: '12px', overflow: 'hidden' }}>
         <Tabs
           value={tabValue}
           onChange={handleTabChange}
           indicatorColor="primary"
           textColor="primary"
           centered
+          sx={{ 
+            '& .MuiTab-root': { 
+              py: 2,
+              fontSize: '0.95rem',
+              minHeight: '56px'
+            }
+          }}
         >
           <Tab icon={<TodayIcon />} label="Today" />
           <Tab icon={<TimelineIcon />} label="History" />
@@ -185,10 +192,10 @@ const BunkeringOperation = () => {
       
       {/* Content for "Today" tab */}
       {tabValue === 0 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6">
-              Operations for Today ({formatDate(today)})
+        <Paper sx={{ p: 4, mb: 3, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 4, position: 'relative' }}>
+            <Typography variant="h6" sx={{ position: 'absolute', left: 0, right: 0, textAlign: 'center', fontWeight: 500 }}>
+              {formatDate(today)}
             </Typography>
           </Box>
           
@@ -201,7 +208,7 @@ const BunkeringOperation = () => {
           />
           
           {todayRecords.length === 0 && !loading && (
-            <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+            <Typography align="center" color="text.secondary" sx={{ py: 6, fontSize: '1.1rem' }}>
               No operations for today
             </Typography>
           )}
@@ -210,7 +217,7 @@ const BunkeringOperation = () => {
       
       {/* Content for "History" tab */}
       {tabValue === 1 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
+        <Paper sx={{ p: 4, mb: 3, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
           <DataTable
             columns={columns}
             data={data}
@@ -220,7 +227,7 @@ const BunkeringOperation = () => {
           />
           
           {data.length === 0 && !loading && (
-            <Typography align="center" color="text.secondary" sx={{ py: 4 }}>
+            <Typography align="center" color="text.secondary" sx={{ py: 6, fontSize: '1.1rem' }}>
               No operations found
             </Typography>
           )}
@@ -234,7 +241,7 @@ const BunkeringOperation = () => {
         onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert onClose={handleSnackbarClose} severity={snackbar.severity}>
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>

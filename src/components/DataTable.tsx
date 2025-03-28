@@ -23,6 +23,8 @@ import {
   Typography,
   CircularProgress
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
 import { useState, useEffect, useMemo } from 'react';
 import { formatDate as formatDateDisplay, parseUserDateInput } from '../utils/dateUtils';
@@ -49,6 +51,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const theme = useTheme();
   
   // Пагинация
   const [page, setPage] = useState(0);
@@ -239,7 +242,48 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
           value={searchQuery}
           onChange={handleSearchChange}
           size="small"
-          sx={{ width: '300px' }}
+          sx={{ 
+            width: '250px',
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '10px',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              '&:hover': {
+                borderColor: theme.palette.primary.main,
+                boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                transform: 'translateY(-1px)'
+              },
+              '&.Mui-focused': {
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.25)}`,
+                borderColor: theme.palette.primary.main,
+                borderWidth: '2px',
+                transform: 'translateY(-2px)'
+              }
+            },
+            '& .MuiInputBase-input': {
+              padding: '10px 14px',
+              '&::placeholder': {
+                opacity: 0.7,
+                transition: 'opacity 0.2s ease',
+              },
+              '&:focus::placeholder': {
+                opacity: 0.5
+              }
+            },
+            '& .MuiInputAdornment-root': {
+              marginLeft: '8px',
+              '& .MuiSvgIcon-root': {
+                fontSize: '1.2rem',
+                color: theme.palette.primary.main,
+                opacity: 0.7,
+                transition: 'all 0.2s ease',
+              }
+            },
+            '&:hover .MuiInputAdornment-root .MuiSvgIcon-root': {
+              opacity: 1,
+              transform: 'scale(1.1)'
+            }
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">

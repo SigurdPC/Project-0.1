@@ -34,40 +34,40 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
   return (
     <Paper 
       sx={{ 
-        mb: 1,
+        mb: 2,
         overflow: 'hidden',
-        boxShadow: isExpanded ? 3 : 1
+        boxShadow: isExpanded ? '0 6px 12px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.05)',
+        borderRadius: '10px',
+        transition: 'box-shadow 0.3s'
       }}
     >
       <Box 
         sx={{ 
-          p: 2, 
+          p: 2.5, 
           display: 'flex', 
           justifyContent: 'space-between',
           alignItems: 'center',
           cursor: 'pointer',
           bgcolor: isExpanded ? 'primary.light' : 'inherit',
           color: isExpanded ? 'white' : 'inherit',
-          transition: 'background-color 0.3s'
+          transition: 'background-color 0.3s',
+          '&:hover': {
+            bgcolor: isExpanded ? 'primary.light' : 'rgba(0,0,0,0.02)'
+          }
         }}
         onClick={onToggleExpand}
       >
-        <Typography variant="h6">{formatDate(date)}</Typography>
+        <Typography variant="h6" sx={{ fontWeight: 500 }}>{formatDate(date)}</Typography>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Chip 
-            label={`${eventsCount} events in ${locationsCount} locations`}
-            size="small" 
-            sx={{ mr: 1 }}
-          />
           {isExpanded ? 
-            <KeyboardArrowUpIcon /> : 
-            <KeyboardArrowDownIcon />
+            <KeyboardArrowUpIcon sx={{ fontSize: '1.5rem' }} /> : 
+            <KeyboardArrowDownIcon sx={{ fontSize: '1.5rem' }} />
           }
         </Box>
       </Box>
       
       <Collapse in={isExpanded}>
-        <Box sx={{ p: 2, bgcolor: 'background.paper' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper' }}>
           {children}
         </Box>
       </Collapse>

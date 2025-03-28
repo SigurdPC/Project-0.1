@@ -196,22 +196,32 @@ export const DPTimePage = () => {
   };
   
   return (
-    <Container maxWidth="lg">
-      <Box sx={maritimeStyles.container}>
+    <Container sx={{ mt: 4, mb: 6 }}>
+      <Typography variant="h5" gutterBottom align="center" sx={{ mb: 3, fontWeight: 500 }}>
+        DP Time
+      </Typography>
+      
+      <Box sx={{ 
+        ...maritimeStyles.container,
+        borderRadius: '12px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+        p: 2
+      }}>
         <Box sx={maritimeStyles.header}>
-          <Box sx={maritimeStyles.iconContainer}>
-            <SailingOutlined fontSize="large" />
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+            <Box sx={{ ...maritimeStyles.iconContainer, fontSize: '1.5rem' }}>
+              <SailingOutlined fontSize="large" />
+            </Box>
           </Box>
-          <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 500, color: theme.palette.primary.main, mb: 0 }}>
-            DP Time Calculation
-          </Typography>
         </Box>
         
         {/* Блок настроек */}
         <Paper sx={{ 
           ...maritimeStyles.paper, 
-          p: 3, 
-          mb: 3,
+          p: 4, 
+          mb: 4,
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
           '&::before': {
             content: '""',
             position: 'absolute',
@@ -222,13 +232,6 @@ export const DPTimePage = () => {
             background: 'linear-gradient(90deg, #1976d2, #64b5f6, #1976d2)'
           }
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <AnchorOutlined color="primary" sx={{ mr: 1 }} />
-            <Typography variant="h5" gutterBottom sx={{ mb: 0, fontWeight: 500 }}>
-              Calculation Settings
-            </Typography>
-          </Box>
-          
           <DPTimeSettings 
             settings={settings}
             loading={loading}
@@ -247,7 +250,10 @@ export const DPTimePage = () => {
         {resultsCalculated && (
           <Paper sx={{ 
             ...maritimeStyles.paper, 
+            p: 4,
             mb: 3,
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
             '&::before': {
               content: '""',
               position: 'absolute',
@@ -258,13 +264,6 @@ export const DPTimePage = () => {
               background: 'linear-gradient(90deg, #1976d2, #64b5f6, #1976d2)'
             }
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', p: 3, pb: 1 }}>
-              <WavesOutlined color="primary" sx={{ mr: 1 }} />
-              <Typography variant="h5" sx={{ fontWeight: 500 }}>
-                Calculation Results
-              </Typography>
-            </Box>
-            
             <DPTimeResults 
               results={results}
               operations={operations}
@@ -286,6 +285,8 @@ export const DPTimePage = () => {
             severity={snackbar.severity}
             icon={<WaterOutlined />}
             sx={{ 
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               '& .MuiAlert-icon': { 
                 color: theme.palette.primary.main 
               }
