@@ -66,7 +66,22 @@ const HistoryView: React.FC<HistoryViewProps> = ({
               onEdit={() => onEditLocation(date, location, group)}
               onDelete={() => {
                 if (window.confirm(`Вы уверены, что хотите удалить все операции для этой локации "${location}"?`)) {
-                  onDeleteLocationEvents(group);
+                  if (group && group.length > 0) {
+                    // Фильтруем только события с ID
+                    const eventsWithIds = group.filter(event => event && event.id);
+                    
+                    if (eventsWithIds.length > 0) {
+                      console.log(`Deleting ${eventsWithIds.length} events for location "${location}"`);
+                      onDeleteLocationEvents(eventsWithIds);
+                    } else {
+                      console.error('No events with valid IDs found for deletion', {
+                        location,
+                        totalEvents: group.length
+                      });
+                    }
+                  } else {
+                    console.error('No operations found for deletion');
+                  }
                 }
               }}
             />

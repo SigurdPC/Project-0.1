@@ -14,7 +14,7 @@ interface TimelineProps {
   events: DPHours[];
   onEdit: (id: string, updatedData: DPHours) => void;
   onEditLocation: (date: string, location: string, events: DPHours[]) => void;
-  onDelete?: (id: string) => void;
+  onDelete?: (id: string | DPHours[]) => void;
 }
 
 // Компонент Timeline для отображения событий
@@ -72,9 +72,43 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
   
   const handleDeleteLocationClick = (locationEvents: DPHours[]) => {
     // Проверяем, что onDelete существует и что есть события
-    if (typeof onDelete === 'function' && locationEvents.length > 0) {
-      // Передаем ID первой записи в группе для обработки
-      onDelete(locationEvents[0].id);
+    if (typeof onDelete !== 'function' || !locationEvents || locationEvents.length === 0) {
+      console.error('Cannot delete: handler missing or empty events array', { 
+        hasDeleteHandler: typeof onDelete === 'function',
+        eventsCount: locationEvents?.length || 0
+      });
+      return;
+    }
+
+    // Попробуем две стратегии удаления:
+    // 1. Передаем весь массив событий, если обработчик может его принять
+    // 2. Находим первый элемент с ID, если не сработает первый способ
+    console.log('Attempting to delete all events for location', {
+      locationName: locationEvents[0]?.location,
+      eventsCount: locationEvents.length
+    });
+    
+    // Фильтруем события, чтобы убедиться, что у всех есть ID
+    const eventsWithId = locationEvents.filter(event => event && event.id);
+    
+    if (eventsWithId.length > 0) {
+      try {
+        // Пробуем передать весь массив событий - это может работать, если обработчик принимает массив
+        onDelete(eventsWithId);
+      } catch (error) {
+        console.error('Error using array deletion, falling back to single ID deletion', error);
+        
+        // Запасной вариант - используем ID первого события
+        const firstEvent = eventsWithId[0];
+        if (firstEvent && firstEvent.id) {
+          console.log('Falling back to delete by ID:', firstEvent.id);
+          onDelete(firstEvent.id);
+        } else {
+          console.error('Cannot delete: No valid ID in first event');
+        }
+      }
+    } else {
+      console.error('Cannot delete: No events with valid IDs in this location', locationEvents);
     }
   };
   
@@ -123,7 +157,7 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
             
             <List sx={{ width: '100%' }}>
               {locationEvents.map((event, index) => (
-                <React.Fragment key={event.id}>
+                <React.Fragment key={event.id || `temp-${index}`}>
                   {index > 0 && <Divider component="li" />}
                   <ListItem 
                     sx={{ 

@@ -127,33 +127,72 @@ export const useDataManagement = (): DataManagementHook => {
     }
   }, [data]);
 
-  // Delete event
-  const deleteEvent = useCallback(async (id: string): Promise<boolean> => {
+  // Удаление отдельного события по ID
+  const deleteEvent = async (id: string): Promise<boolean> => {
+    if (!id || id === '') {
+      console.error('deleteEvent: Invalid ID provided', id);
+      return false;
+    }
+
+    // Пропускаем временные ID, которые начинаются с 'temp-'
+    if (id.startsWith('temp-')) {
+      console.log(`Skipping temporary ID: ${id}`);
+      return true;
+    }
+
     try {
+      console.log(`Deleting event with ID: ${id}`);
       await dphoursApi.deleteRecord(id);
-      setData(prev => prev.filter((item) => item.id !== id));
+      
+      // Обновляем локальное состояние, удаляя запись с указанным ID
+      setData(prevData => prevData.filter(item => item.id !== id));
+      
       return true;
-    } catch (err) {
-      console.error('Failed to delete record:', err);
+    } catch (error) {
+      console.error(`Failed to delete event with ID: ${id}`, error);
       return false;
     }
-  }, []);
+  };
   
-  // Delete multiple events
-  const deleteMultipleEvents = useCallback(async (eventIds: string[]): Promise<boolean> => {
-    try {
-      for (const id of eventIds) {
-        if (!id.startsWith('temp-')) {
-          await dphoursApi.deleteRecord(id);
-        }
-      }
-      setData(prev => prev.filter((item) => !eventIds.includes(item.id)));
-      return true;
-    } catch (err) {
-      console.error('Failed to delete records:', err);
-      return false;
+  // Удаление нескольких записей DP Hours по массиву ID
+  const deleteMultipleEvents = async (ids: string[]): Promise<boolean> => {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      console.error('deleteMultipleEvents: Empty or invalid ids array', ids);
+      return Promise.reject(new Error('Invalid IDs provided for deletion'));
     }
-  }, []);
+
+    // Фильтруем только валидные ID
+    const validIds = ids.filter(id => id !== undefined && id !== null && id !== '');
+    
+    if (validIds.length === 0) {
+      console.error('deleteMultipleEvents: No valid IDs after filtering', ids);
+      return Promise.reject(new Error('No valid IDs to delete'));
+    }
+
+    console.log(`Deleting ${validIds.length} events with IDs:`, validIds);
+
+    try {
+      // Используем Promise.all для параллельного удаления всех элементов
+      const results = await Promise.all(
+        validIds.map(id => deleteEvent(id))
+      );
+      
+      // Проверяем, все ли операции удаления прошли успешно
+      const allSuccessful = results.every(result => result === true);
+      
+      if (allSuccessful) {
+        console.log(`Successfully deleted all ${validIds.length} events`);
+        return true;
+      } else {
+        const failedCount = results.filter(result => result !== true).length;
+        console.error(`Failed to delete ${failedCount} out of ${validIds.length} events`);
+        return Promise.reject(new Error(`Failed to delete ${failedCount} events`));
+      }
+    } catch (error) {
+      console.error('Error in deleteMultipleEvents:', error);
+      return Promise.reject(error);
+    }
+  };
 
   // Load initial data
   useEffect(() => {

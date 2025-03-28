@@ -29,6 +29,24 @@ const LocationCard: React.FC<LocationCardProps> = ({
   onEdit,
   onDelete
 }) => {
+  // Проверка наличия событий перед удалением
+  const handleDelete = () => {
+    if (!events || events.length === 0) {
+      console.error('Cannot delete: No events provided for location', location);
+      return;
+    }
+    
+    // Проверяем, что есть хотя бы одно событие с id
+    const hasValidIds = events.some(event => event && event.id);
+    if (!hasValidIds) {
+      console.error('Cannot delete: No events with valid IDs for location', location);
+      return;
+    }
+    
+    console.log('Deleting location with events:', events);
+    onDelete();
+  };
+  
   return (
     <Paper sx={{ mb: 3, overflow: 'hidden' }}>
       <Box sx={{ 
@@ -56,7 +74,7 @@ const LocationCard: React.FC<LocationCardProps> = ({
           </IconButton>
           <IconButton 
             size="small"
-            onClick={onDelete}
+            onClick={handleDelete}
             sx={{ color: 'white' }}
           >
             <DeleteIcon fontSize="small" />
@@ -66,7 +84,7 @@ const LocationCard: React.FC<LocationCardProps> = ({
       
       <List sx={{ width: '100%' }}>
         {events.map((event, index) => (
-          <React.Fragment key={event.id}>
+          <React.Fragment key={event.id || `temp-${index}`}>
             {index > 0 && <Divider component="li" />}
             <ListItem 
               sx={{ 

@@ -369,21 +369,42 @@ const DPHoursPage = () => {
     }
   };
 
-  // История: удаление операций локации
-  const handleDeleteLocationEvents = async (events: DPHours[]) => {
-    try {
-      const eventIds = events.map(event => event.id);
-      const success = await deleteMultipleEvents(eventIds);
-      
-      if (success) {
-      showSnackbar('Локация успешно удалена', 'success');
-      } else {
-        showSnackbar('Не удалось удалить все операции', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to delete location:', error);
-      showSnackbar('Не удалось удалить локацию', 'error');
+  // Удаление группы событий по одной локации
+  const handleDeleteLocationEvents = (events: DPHours[]) => {
+    if (!events || events.length === 0) {
+      console.error('handleDeleteLocationEvents: No events provided');
+      showSnackbar('Failed to delete: No events provided', 'error');
+      return;
     }
+
+    console.log(`Attempting to delete ${events.length} events`);
+    
+    // Извлекаем все валидные ID из массива событий
+    const idsToDelete = events
+      .filter(event => event && event.id) // Убедимся, что у события есть ID
+      .map(event => String(event.id));    // Преобразуем все ID в строки
+    
+    if (idsToDelete.length === 0) {
+      console.error('No valid IDs found for deletion');
+      showSnackbar('Failed to delete: No valid IDs found', 'error');
+      return;
+    }
+
+    console.log(`Deleting ${idsToDelete.length} events with IDs:`, idsToDelete);
+    
+    // Вызываем функцию удаления нескольких записей
+    deleteMultipleEvents(idsToDelete)
+      .then(() => {
+        console.log('Successfully deleted events:', idsToDelete.length);
+        showSnackbar(`Successfully deleted ${idsToDelete.length} events.`, 'success');
+        
+        // Обновляем данные
+        fetchData();
+      })
+      .catch(error => {
+        console.error('Error deleting events:', error);
+        showSnackbar('Failed to delete events: ' + (error.message || 'Unknown error'), 'error');
+      });
   };
 
   // История: сохранение изменений локации
@@ -511,12 +532,44 @@ const DPHoursPage = () => {
   };
 
   // Обработчик удаления группы локаций для вкладки Today
-  const handleDeleteLocationAdapter = (id: string) => {
-    if (!id) return;
+  const handleDeleteLocationAdapter = (idOrEvents: string | DPHours[]) => {
+    console.log('handleDeleteLocationAdapter called with:', typeof idOrEvents, idOrEvents);
+    
+    // Проверяем, является ли параметр массивом событий
+    if (Array.isArray(idOrEvents)) {
+      // Если нам передали массив событий, напрямую вызываем функцию удаления
+      if (idOrEvents.length > 0) {
+        console.log('Direct deletion of events array', idOrEvents.length, 'events');
+        
+        // Подтверждаем удаление
+        const location = idOrEvents[0]?.location || 'выбранной локации';
+        if (window.confirm(`Вы уверены, что хотите удалить все операции для локации "${location}"?`)) {
+          handleDeleteLocationEvents(idOrEvents);
+        }
+      } else {
+        console.error('Cannot delete: Empty events array');
+        showSnackbar('Не удалось удалить: пустой массив событий', 'error');
+      }
+      return;
+    }
+    
+    // Если параметр - строка ID, находим связанные события
+    const id = idOrEvents;
+    if (!id) {
+      console.error('handleDeleteLocationAdapter: No ID provided');
+      showSnackbar('Cannot delete: No ID provided', 'error');
+      return;
+    }
+    
+    console.log('Deletion by ID:', id);
     
     // Находим событие по ID
     const targetEvent = data.find(item => String(item.id) === String(id));
-    if (!targetEvent) return;
+    if (!targetEvent) {
+      console.error('Event not found for deletion:', id);
+      showSnackbar('Failed to find event for deletion', 'error');
+      return;
+    }
     
     // Получаем все события для этой даты и локации
     const dateEvents = data.filter(item => 
@@ -524,42 +577,32 @@ const DPHoursPage = () => {
       item.location === targetEvent.location
     );
     
-    // Сортируем события по времени
-    const sortedEvents = [...dateEvents].sort((a, b) => 
-      a.time.localeCompare(b.time)
-    );
-    
-    // Разбиваем на группы по DP OFF
-    const groups: DPHours[][] = [];
-    let currentGroup: DPHours[] = [];
-    
-    sortedEvents.forEach(event => {
-      // Добавляем событие в текущую группу
-      currentGroup.push(event);
-      
-      // Если это DP OFF, начинаем новую группу
-      if (event.operationType === 'DP OFF') {
-        groups.push([...currentGroup]);
-        currentGroup = [];
-      }
-    });
-    
-    // Добавляем последнюю группу, если она не пустая
-    if (currentGroup.length > 0) {
-      groups.push(currentGroup);
+    if (dateEvents.length === 0) {
+      console.error('No events found for this location', {
+        id,
+        date: targetEvent.date,
+        location: targetEvent.location
+      });
+      showSnackbar('Failed to find events for deletion', 'error');
+      return;
     }
     
-    // Находим группу, которая содержит наше событие
-    const targetGroupIndex = groups.findIndex(group => 
-      group.some(event => String(event.id) === String(id))
-    );
+    console.log(`Found ${dateEvents.length} events to delete for location "${targetEvent.location}"`);
     
-    if (targetGroupIndex !== -1 && groups[targetGroupIndex].length > 0) {
-      const targetGroup = groups[targetGroupIndex];
+    // Подтверждение удаления
+    if (window.confirm(`Вы уверены, что хотите удалить все операции для локации "${targetEvent.location}"?`)) {
+      // Проверяем, что у всех событий есть ID
+      const eventsWithIds = dateEvents.filter(event => event.id);
+      if (eventsWithIds.length !== dateEvents.length) {
+        console.warn(`Some events (${dateEvents.length - eventsWithIds.length}) don't have IDs`);
+      }
       
-      // Подтверждение удаления
-      if (window.confirm(`Вы уверены, что хотите удалить эту группу операций?`)) {
-        handleDeleteLocationEvents(targetGroup);
+      if (eventsWithIds.length > 0) {
+        // Передаем только события с ID для удаления
+        handleDeleteLocationEvents(eventsWithIds);
+      } else {
+        console.error('No events with IDs to delete');
+        showSnackbar('Failed to delete: No valid events found', 'error');
       }
     }
   };
