@@ -61,7 +61,8 @@ const DPHoursPage = () => {
   // Хуки управления данными и состоянием
   const { 
     data, loading, error, snackbar, showSnackbar, handleSnackbarClose,
-    fetchData, addEvent, updateEvent, deleteEvent, deleteMultipleEvents
+    fetchData, addEvent, updateEvent, deleteEvent, deleteMultipleEvents,
+    setData, setLoading
   } = useDataManagement();
   
   const {
@@ -474,23 +475,56 @@ const DPHoursPage = () => {
       return;
     }
     
+    setLoading(true);
     try {
-      const success = await deleteEvent(id);
+      // Преобразуем ID в строку для надежности
+      const operationId = String(id);
       
-      if (success) {
-      // Если открыт диалог редактирования, закрываем его
-        if (editFormData?.id === id) {
+      // Проверяем, не временный ли это ID
+      if (operationId.startsWith('temp-')) {
+        // Для временных ID обновляем только состояние без запроса к API
+        setData((prev: DPHours[]) => prev.filter((item: DPHours) => String(item.id) !== operationId));
         setIsEditDialogOpen(false);
         setEditFormData(null);
+        showSnackbar('Operation deleted successfully', 'success');
+        setLoading(false);
+        return;
       }
       
-      showSnackbar('Operation deleted successfully', 'success');
+      const success = await deleteEvent(operationId);
+      
+      if (success) {
+        // Если открыт диалог редактирования, закрываем его
+        if (editFormData?.id === operationId) {
+          setIsEditDialogOpen(false);
+          setEditFormData(null);
+        }
+        // Обновляем список операций в диалоге редактирования локации, если он открыт
+        if (locationEditData && locationEditData.events.some(event => String(event.id) === operationId)) {
+          if (locationEditData.events.length <= 1) {
+            // Если это последняя операция в локации, закрываем диалог
+            setIsLocationEditDialogOpen(false);
+            setLocationEditData(null);
+          } else {
+            // Иначе обновляем список операций
+            setLocationEditData({
+              ...locationEditData,
+              events: locationEditData.events.filter(event => String(event.id) !== operationId)
+            });
+          }
+        }
+        
+        // Обновляем данные после удаления
+        await fetchData();
+        showSnackbar('Operation deleted successfully', 'success');
       } else {
         showSnackbar('Failed to delete operation', 'error');
       }
     } catch (err) {
       console.error('Failed to delete operation:', err);
       showSnackbar('Failed to delete operation', 'error');
+    } finally {
+      setLoading(false);
     }
   };
   

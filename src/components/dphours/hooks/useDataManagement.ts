@@ -14,6 +14,8 @@ export interface DataManagementHook {
   updateEvent: (id: string, updatedData: Partial<DPHours>) => Promise<boolean>;
   deleteEvent: (id: string) => Promise<boolean>;
   deleteMultipleEvents: (eventIds: string[]) => Promise<boolean>;
+  setData: React.Dispatch<React.SetStateAction<DPHours[]>>;
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const useDataManagement = (): DataManagementHook => {
@@ -210,6 +212,8 @@ export const useDataManagement = (): DataManagementHook => {
     addEvent,
     updateEvent,
     deleteEvent,
-    deleteMultipleEvents
+    deleteMultipleEvents,
+    setData,
+    setLoading
   };
 }; 

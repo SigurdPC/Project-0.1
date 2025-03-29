@@ -82,6 +82,11 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
     const dateGroups: Record<string, DateGroup> = {};
     const multiDayOperations: Record<string, OperationGroup> = {};
     
+    // Даты, для которых рассчитаны результаты (для определения соседних дат)
+    const datesWithResults = new Set<string>();
+    results.forEach(result => datesWithResults.add(result.date));
+    const datesArray = Array.from(datesWithResults).sort();
+    
     // First, identify multi-day operations
     operations.forEach(operation => {
       if (operation.startDate !== operation.endDate && operation.endDate) {
@@ -95,10 +100,13 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       }
     });
     
-    // Process all results and deduplicate
-    // Создаем набор уникальных ключей результатов, чтобы избежать дублирования
+    // Для отслеживания и предотвращения дублирования
     const processedResultKeys = new Set<string>();
     
+    // Соберем все минуты по каждой дате для каждой операции
+    const operationMinutesByDate: Record<string, Record<string, number>> = {};
+    
+    // Process all results
     results.forEach(result => {
       const { operationId, date, shiftId, shiftStart, shiftEnd, minutesInShift } = result;
       const operation = operations.find(op => op.id === operationId);
@@ -108,13 +116,18 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       // Создаем уникальный ключ для этого результата
       const resultKey = `${operationId}-${date}-${shiftId}`;
       
-      // Проверяем, был ли этот результат уже обработан
-      if (processedResultKeys.has(resultKey)) {
-        return; // Пропускаем дубликаты
-      }
-      
-      // Помечаем результат как обработанный
+      // Если результат уже обработан, пропускаем
+      if (processedResultKeys.has(resultKey)) return;
       processedResultKeys.add(resultKey);
+      
+      // Отслеживаем минуты по операциям и датам
+      if (!operationMinutesByDate[date]) {
+        operationMinutesByDate[date] = {};
+      }
+      if (!operationMinutesByDate[date][operationId]) {
+        operationMinutesByDate[date][operationId] = 0;
+      }
+      operationMinutesByDate[date][operationId] += minutesInShift;
       
       // Check if this is part of a multi-day operation
       if (multiDayOperations[operationId]) {
@@ -136,47 +149,105 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
         // Increase the total operation time
         multiDayOp.totalMinutes += minutesInShift;
       } else {
-        // Группируем однодневные операции ТОЛЬКО ПО ДАТЕ, а не по операции и дате
-        const dateKey = date;
-        
-        if (!dateGroups[dateKey]) {
-          dateGroups[dateKey] = {
+        // Group single-day operations by date
+        if (!dateGroups[date]) {
+          dateGroups[date] = {
             date,
             shifts: [],
             totalMinutes: 0,
-            operations: [operationId]
+            operations: []
           };
-        } else if (!dateGroups[dateKey].operations.includes(operationId)) {
-          // Add the operation ID if it's not already in the list
-          dateGroups[dateKey].operations.push(operationId);
+        }
+        
+        // Add the operation ID if not already in the list
+        if (!dateGroups[date].operations.includes(operationId)) {
+          dateGroups[date].operations.push(operationId);
         }
         
         // Add shift information if it doesn't exist yet
-        const shiftExists = dateGroups[dateKey].shifts.some(
+        const shiftExists = dateGroups[date].shifts.some(
           s => s.shiftId === shiftId && s.shiftStart === shiftStart && s.shiftEnd === shiftEnd
         );
         
         if (!shiftExists) {
-          dateGroups[dateKey].shifts.push({
+          dateGroups[date].shifts.push({
             shiftId,
             shiftStart,
             shiftEnd
           });
         }
         
-        // Increase the total time for this date (все операции за один день)
-        dateGroups[dateKey].totalMinutes += minutesInShift;
+        // Increase the total time for this date
+        dateGroups[date].totalMinutes += minutesInShift;
       }
     });
     
-    // Фильтруем операции с нулевыми результатами
+    // Проверим операции по дням, чтобы правильно рассчитать непрерывные операции
+    for (let i = 0; i < datesArray.length; i++) {
+      const currentDate = datesArray[i];
+      const currentDateOps = operationMinutesByDate[currentDate] || {};
+      
+      if (i > 0) {
+        const prevDate = datesArray[i-1];
+        const prevDateOps = operationMinutesByDate[prevDate] || {};
+        
+        // Проверяем каждую операцию, которая есть и в предыдущий и в текущий день
+        Object.keys(currentDateOps).forEach(opId => {
+          if (prevDateOps[opId] && currentDateOps[opId]) {
+            // Если операция есть в предыдущий день и не является многодневной
+            if (!multiDayOperations[opId]) {
+              // Проверяем операцию
+              const operation = operations.find(op => op.id === opId);
+              if (operation) {
+                // Если операция длится более одного дня, но не отмечена как многодневная
+                if (operation.startDate !== operation.endDate) {
+                  // Создаем группу для многодневной операции
+                  multiDayOperations[opId] = {
+                    operationId: opId,
+                    startDate: operation.startDate,
+                    endDate: operation.endDate || currentDate,
+                    shifts: [],
+                    totalMinutes: 0
+                  };
+                  
+                  // Копируем информацию о сменах из групп по датам
+                  [prevDate, currentDate].forEach(date => {
+                    if (dateGroups[date]) {
+                      // Добавляем смены
+                      dateGroups[date].shifts.forEach(shift => {
+                        const shiftExists = multiDayOperations[opId].shifts.some(
+                          s => s.shiftId === shift.shiftId && s.shiftStart === shift.shiftStart && s.shiftEnd === shift.shiftEnd
+                        );
+                        
+                        if (!shiftExists) {
+                          multiDayOperations[opId].shifts.push(shift);
+                        }
+                      });
+                      
+                      // Суммируем минуты
+                      multiDayOperations[opId].totalMinutes += operationMinutesByDate[date][opId] || 0;
+                      
+                      // Удаляем операцию из группы по дате
+                      dateGroups[date].operations = dateGroups[date].operations.filter(id => id !== opId);
+                      dateGroups[date].totalMinutes -= operationMinutesByDate[date][opId] || 0;
+                    }
+                  });
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+    
+    // Фильтруем группы с нулевым временем
     const multiDayArray = Object.values(multiDayOperations)
       .filter(op => op.totalMinutes > 0);
     
-    // Convert date groups to array
-    const dateArray = Object.values(dateGroups);
+    const dateArray = Object.values(dateGroups)
+      .filter(group => group.totalMinutes > 0 && group.operations.length > 0);
     
-    // Объединяем и преобразуем данные для отображения
+    // Объединяем и сортируем финальный результат
     const combined = [
       ...multiDayArray,
       ...dateArray.map(group => ({

@@ -411,32 +411,37 @@ const calculateTimeInShift = (
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
   };
 
-  // Для операции конкретно в этот день
+  // Выходим сразу, если операция не пересекается с текущей датой
+  // Операция ещё не началась
+  if (operationDate < operationStartDate) {
+    return { minutes: 0, startTime: null, endTime: null };
+  }
+  
+  // Операция уже закончилась
+  if (operationEndDate && operationDate > operationEndDate) {
+    return { minutes: 0, startTime: null, endTime: null };
+  }
+
+  // Границы операции в текущем дне
   let opStartMin = 0;
   let opEndMin = 24 * 60 - 1; // 23:59
   let opStartTimeForDay: string | null = null;
   let opEndTimeForDay: string | null = null;
 
-  // Если операция начинается в этот день, установим фактическое время начала
+  // Если операция начинается в этот день, установим её фактическое время начала
   if (operationDate === operationStartDate) {
     opStartMin = toMinutes(operationStartTime);
     opStartTimeForDay = operationStartTime;
-  } else if (operationDate < operationStartDate) {
-    // Операция еще не началась в этот день
-    return { minutes: 0, startTime: null, endTime: null };
   } else {
     // Операция началась в предыдущий день, начинаем с 00:00
     opStartMin = 0;
     opStartTimeForDay = '00:00';
   }
 
-  // Если операция заканчивается в этот день, установим фактическое время окончания
+  // Если операция заканчивается в этот день, установим её фактическое время окончания
   if (operationEndDate === operationDate && operationEndTime) {
     opEndMin = toMinutes(operationEndTime);
     opEndTimeForDay = operationEndTime;
-  } else if (operationEndDate && operationDate > operationEndDate) {
-    // Операция уже закончилась до этого дня
-    return { minutes: 0, startTime: null, endTime: null };
   } else {
     // Операция продолжается после этого дня, заканчиваем в 23:59
     opEndMin = 24 * 60 - 1;
@@ -444,57 +449,80 @@ const calculateTimeInShift = (
   }
 
   // Расчет минут в смене
-  let minutesInShift = 0;
   const shiftStartMin = toMinutes(shiftStart);
   const shiftEndMin = toMinutes(shiftEnd);
+  let minutesInShift = 0;
 
+  // Обработка ночных смен (когда начало смены позже окончания - переход через полночь)
   if (isOvernightShift) {
-    // Ночная смена (переход через полночь)
-    // Первая часть смены: от начала смены до полуночи
-    if (opStartMin <= 24 * 60 - 1 && opEndMin >= shiftStartMin) {
-      const start = Math.max(opStartMin, shiftStartMin);
-      const end = Math.min(opEndMin, 24 * 60 - 1);
-      if (end >= start) {
-        minutesInShift += (end - start);
+    // Определим, находимся ли мы в конце ночной смены (утро) или в начале (вечер)
+    const prevDate = new Date(operationDate);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateStr = prevDate.toISOString().split('T')[0];
+    
+    const nextDate = new Date(operationDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    const nextDateStr = nextDate.toISOString().split('T')[0];
+    
+    // Проверяем вечернюю часть смены (от shiftStart до полуночи)
+    if (opEndMin >= shiftStartMin) { // если операция не заканчивается до начала смены
+      const eveningStart = Math.max(opStartMin, shiftStartMin);
+      const eveningEnd = Math.min(opEndMin, 24 * 60 - 1);
+      
+      if (eveningEnd >= eveningStart) {
+        minutesInShift += (eveningEnd - eveningStart);
         
-        // Если операция начинается в вечернюю часть смены
-        if (opStartMin >= shiftStartMin && opStartTimeForDay === operationStartTime) {
-          opStartTimeForDay = toTimeString(start);
+        // Если время начала расчета отличается от времени начала операции
+        if (eveningStart > opStartMin) {
+          opStartTimeForDay = toTimeString(eveningStart);
         }
       }
     }
-
-    // Вторая часть смены: от полуночи до конца смены
-    if (opStartMin <= shiftEndMin && opEndMin >= 0) {
-      const start = Math.max(opStartMin, 0);
-      const end = Math.min(opEndMin, shiftEndMin);
-      if (end >= start) {
-        minutesInShift += (end - start);
+    
+    // Проверяем утреннюю часть смены (от полуночи до shiftEnd)
+    // Условия для учета утренней части:
+    // 1. Если операция началась в предыдущий день или в 00:00 текущего дня
+    // 2. Если операция начинается сегодня до окончания утренней части смены
+    const isCarriedFromPrevDay = (operationDate > operationStartDate) || 
+                               (operationDate === operationStartDate && opStartMin === 0);
+                               
+    const startsBeforeShiftEnd = opStartMin < shiftEndMin;
+    
+    if ((isCarriedFromPrevDay || startsBeforeShiftEnd) && opStartMin <= shiftEndMin) {
+      const morningStart = Math.max(0, opStartMin); // Начало операции или 00:00
+      const morningEnd = Math.min(shiftEndMin, opEndMin); // Конец операции или конец смены
+      
+      if (morningEnd > morningStart) {
+        minutesInShift += (morningEnd - morningStart);
         
-        // Если операция заканчивается в утреннюю часть смены
-        if (opEndMin <= shiftEndMin && opEndTimeForDay === operationEndTime) {
-          opEndTimeForDay = toTimeString(end);
+        // Обновляем время окончания, если операция закончилась после смены
+        if (morningEnd < opEndMin && morningEnd < 24 * 60 - 1) {
+          opEndTimeForDay = toTimeString(morningEnd);
         }
       }
     }
   } else {
-    // Обычная дневная смена
-    // Проверяем, пересекается ли операция со сменой
+    // Стандартные дневные смены (без перехода через полночь)
     const start = Math.max(opStartMin, shiftStartMin);
     const end = Math.min(opEndMin, shiftEndMin);
-
+    
     if (end >= start) {
       minutesInShift = end - start;
-
-      // Уточняем фактическое время начала и окончания внутри смены
+      
+      // Уточняем фактическое время начала и окончания в пределах смены
       if (start > opStartMin) {
         opStartTimeForDay = toTimeString(start);
       }
-
+      
       if (end < opEndMin) {
         opEndTimeForDay = toTimeString(end);
       }
     }
+  }
+
+  // Важная проверка для нулевых минут - не возвращаем лишние значения
+  if (minutesInShift <= 0) {
+    return { minutes: 0, startTime: null, endTime: null };
   }
 
   return {
