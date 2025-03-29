@@ -376,7 +376,7 @@ const DPHoursPage = () => {
       showSnackbar('Failed to delete: No events provided', 'error');
       return;
     }
-
+    
     console.log(`Attempting to delete ${events.length} events`);
     
     // Извлекаем все валидные ID из массива событий
@@ -530,7 +530,7 @@ const DPHoursPage = () => {
       });
     }
   };
-
+  
   // Обработчик удаления группы локаций для вкладки Today
   const handleDeleteLocationAdapter = (idOrEvents: string | DPHours[]) => {
     console.log('handleDeleteLocationAdapter called with:', typeof idOrEvents, idOrEvents);
@@ -588,8 +588,8 @@ const DPHoursPage = () => {
     }
     
     console.log(`Found ${dateEvents.length} events to delete for location "${targetEvent.location}"`);
-    
-    // Подтверждение удаления
+      
+      // Подтверждение удаления
     if (window.confirm(`Вы уверены, что хотите удалить все операции для локации "${targetEvent.location}"?`)) {
       // Проверяем, что у всех событий есть ID
       const eventsWithIds = dateEvents.filter(event => event.id);

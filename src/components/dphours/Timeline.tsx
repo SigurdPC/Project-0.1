@@ -1,11 +1,13 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   Box, Paper, Typography, List, ListItem, 
-  ListItemText, Chip, IconButton, Divider
+  ListItemText, Chip, IconButton, Divider, Collapse
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
 import { DPHours, operationColors } from './types';
 
@@ -19,6 +21,23 @@ interface TimelineProps {
 
 // Компонент Timeline для отображения событий
 const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onDelete }) => {
+  // Состояние для хранения информации о свернутых/развернутых локациях
+  const [expandedLocations, setExpandedLocations] = useState<Record<string, boolean>>({});
+  
+  // Обработчик переключения состояния развернутости
+  const handleToggleExpand = (locationKey: string) => {
+    setExpandedLocations(prev => ({
+      ...prev,
+      [locationKey]: !prev[locationKey]
+    }));
+  };
+  
+  // Проверка, развернута ли локация
+  const isLocationExpanded = (locationKey: string) => {
+    // По умолчанию локации развернуты
+    return expandedLocations[locationKey] !== false;
+  };
+
   // Группировка событий по локациям с разделением по операциям DP OFF
   const eventsByLocation = useMemo(() => {
     const grouped: Record<string, DPHours[][]> = {};
@@ -63,14 +82,20 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
     return grouped;
   }, [events]);
 
-  const handleEditLocationClick = (location: string, locationEvents: DPHours[]) => {
+  const handleEditLocationClick = (e: React.MouseEvent, location: string, locationEvents: DPHours[]) => {
+    // Останавливаем всплытие события, чтобы не сработал обработчик клика на заголовке
+    e.stopPropagation();
+    
     // Вызываем обработчик редактирования локации, если он предоставлен
     if (locationEvents.length > 0 && onEditLocation) {
       onEditLocation(locationEvents[0].date, location, locationEvents);
     }
   };
   
-  const handleDeleteLocationClick = (locationEvents: DPHours[]) => {
+  const handleDeleteLocationClick = (e: React.MouseEvent, locationEvents: DPHours[]) => {
+    // Останавливаем всплытие события, чтобы не сработал обработчик клика на заголовке
+    e.stopPropagation();
+    
     // Проверяем, что onDelete существует и что есть события
     if (typeof onDelete !== 'function' || !locationEvents || locationEvents.length === 0) {
       console.error('Cannot delete: handler missing or empty events array', { 
@@ -121,74 +146,89 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
     <Box>
       {Object.entries(eventsByLocation).map(([location, locationGroups]) => (
         // Отображаем каждую группу отдельно
-        locationGroups.map((locationEvents, groupIndex) => (
-          <Paper key={`${location}-${groupIndex}`} sx={{ mb: 3, overflow: 'hidden' }}>
-            <Box sx={{ 
-              p: 2, 
-              bgcolor: 'primary.main', 
-              color: 'white',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Location: {location}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Typography variant="subtitle1" sx={{ mr: 1 }}>
-                  {locationEvents.length} operations
-                </Typography>
-                <IconButton 
-                  size="small" 
-                  onClick={() => handleEditLocationClick(location, locationEvents)}
-                  sx={{ color: 'white', mr: 0.5 }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton 
-                  size="small" 
-                  onClick={() => handleDeleteLocationClick(locationEvents)}
-                  sx={{ color: 'white' }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Box>
-            </Box>
-            
-            <List sx={{ width: '100%' }}>
-              {locationEvents.map((event, index) => (
-                <React.Fragment key={event.id || `temp-${index}`}>
-                  {index > 0 && <Divider component="li" />}
-                  <ListItem 
-                    sx={{ 
-                      py: 2,
-                      borderLeft: `4px solid ${operationColors[event.operationType]}`,
-                      pl: 3
-                    }}
+        locationGroups.map((locationEvents, groupIndex) => {
+          const locationKey = `${location}-${groupIndex}`;
+          const expanded = isLocationExpanded(locationKey);
+          
+          return (
+            <Paper key={locationKey} sx={{ mb: 3, overflow: 'hidden' }}>
+              <Box 
+                onClick={() => handleToggleExpand(locationKey)}
+                sx={{ 
+                  p: 1.5, 
+                  bgcolor: 'primary.light', 
+                  color: 'white',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {expanded ? <ExpandLessIcon sx={{ mr: 1 }} /> : <ExpandMoreIcon sx={{ mr: 1 }} />}
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    Location: {location}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="subtitle1" sx={{ mr: 1 }}>
+                    {locationEvents.length} operations
+                  </Typography>
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => handleEditLocationClick(e, location, locationEvents)}
+                    sx={{ color: 'white', mr: 0.5 }}
                   >
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
-                            {event.time}
-                          </Typography>
-                          <Chip 
-                            label={event.operationType}
-                            size="small"
-                            sx={{ 
-                              backgroundColor: operationColors[event.operationType],
-                              color: 'white'
-                            }}
-                          />
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                </React.Fragment>
-              ))}
-            </List>
-          </Paper>
-        ))
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => handleDeleteLocationClick(e, locationEvents)}
+                    sx={{ color: 'white' }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Box>
+              
+              <Collapse in={expanded} timeout="auto" unmountOnExit>
+                <List sx={{ width: '100%' }}>
+                  {locationEvents.map((event, index) => (
+                    <React.Fragment key={event.id || `temp-${index}`}>
+                      {index > 0 && <Divider component="li" />}
+                      <ListItem 
+                        sx={{ 
+                          py: 1.5,
+                          borderLeft: `4px solid ${operationColors[event.operationType]}`,
+                          pl: 3
+                        }}
+                      >
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
+                                {event.time}
+                              </Typography>
+                              <Chip 
+                                label={event.operationType}
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: operationColors[event.operationType],
+                                  color: 'white'
+                                }}
+                              />
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                    </React.Fragment>
+                  ))}
+                </List>
+              </Collapse>
+            </Paper>
+          );
+        })
       ))}
     </Box>
   );
