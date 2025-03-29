@@ -63,126 +63,140 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
   onAddOperation,
   onOperationChange,
   onRemoveOperation
-}) => (
-  <Dialog 
-    open={open} 
-    onClose={onClose} 
-    maxWidth="md" 
-    fullWidth
-    scroll="paper"
-  >
-    <DialogTitle>Add Operations</DialogTitle>
-    <DialogContent dividers>
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6}>
-          <AppDatePicker
-            label="Date"
-            value={complexAdd.date || null}
-            onChange={(date) => onBaseChange('date', date || '')}
-            fullWidth
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            label="Location"
-            value={complexAdd.location || ''}
-            onChange={(e) => onBaseChange('location', e.target.value)}
-            fullWidth
-            size="small"
-            placeholder="Enter location"
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-      </Grid>
-      
-      <Typography variant="h6" gutterBottom>
-        Operations
-      </Typography>
-      
-      <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-        {complexAdd.operations.map((operation, index) => (
-          <Grid 
-            container 
-            spacing={2} 
-            key={operation.id}
-            sx={{ 
-              mb: 2,
-              pb: index < complexAdd.operations.length - 1 ? 2 : 0,
-              borderBottom: index < complexAdd.operations.length - 1 ? '1px dashed #ccc' : 'none'
-            }}
-          >
-            <Grid item xs={12} sm={4}>
-              <TextField
-                label="Time"
-                type="time"
-                value={operation.time || ''}
-                onChange={(e) => onOperationChange(operation.id, 'time', e.target.value)}
-                fullWidth
-                size="small"
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Operation Type</InputLabel>
-                <Select
-                  value={operation.operationType || ''}
-                  onChange={(e) => onOperationChange(operation.id, 'operationType', e.target.value)}
-                  label="Operation Type"
-                  size="small"
-                >
-                  {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
-                    <MenuItem key={type} value={type}>{type}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={1} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <IconButton 
-                size="small"
-                color="error"
-                onClick={() => onRemoveOperation(operation.id)}
-                disabled={complexAdd.operations.length <= 1}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Grid>
+}) => {
+  // Сортировка операций - новые операции с пустым временем должны быть в конце списка
+  const sortedOperations = [...complexAdd.operations].sort((a, b) => {
+    // Если обе операции имеют время, сортируем по времени
+    if (a.time && b.time) {
+      return a.time.localeCompare(b.time);
+    }
+    // Операции с пустым временем всегда в конце списка
+    if (!a.time) return 1;
+    if (!b.time) return -1;
+    return 0;
+  });
+
+  return (
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="md" 
+      fullWidth
+      scroll="paper"
+    >
+      <DialogTitle>Add Operations</DialogTitle>
+      <DialogContent dividers>
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6}>
+            <AppDatePicker
+              label="Date"
+              value={complexAdd.date || null}
+              onChange={(date) => onBaseChange('date', date || '')}
+              fullWidth
+            />
           </Grid>
-        ))}
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Location"
+              value={complexAdd.location || ''}
+              onChange={(e) => onBaseChange('location', e.target.value)}
+              fullWidth
+              size="small"
+              placeholder="Enter location"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </Grid>
         
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-          <Button 
-            startIcon={<AddIcon />}
-            onClick={onAddOperation}
-            variant="outlined"
-          >
-            Add Operation
-          </Button>
+        <Typography variant="h6" gutterBottom>
+          Operations
+        </Typography>
+        
+        <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+          {sortedOperations.map((operation, index) => (
+            <Grid 
+              container 
+              spacing={2} 
+              key={operation.id}
+              sx={{ 
+                mb: 2,
+                pb: index < sortedOperations.length - 1 ? 2 : 0,
+                borderBottom: index < sortedOperations.length - 1 ? '1px dashed #ccc' : 'none'
+              }}
+            >
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  label="Time"
+                  type="time"
+                  value={operation.time || ''}
+                  onChange={(e) => onOperationChange(operation.id, 'time', e.target.value)}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Operation Type</InputLabel>
+                  <Select
+                    value={operation.operationType || ''}
+                    onChange={(e) => onOperationChange(operation.id, 'operationType', e.target.value)}
+                    label="Operation Type"
+                    size="small"
+                  >
+                    {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
+                      <MenuItem key={type} value={type}>{type}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={1} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IconButton 
+                  size="small"
+                  color="error"
+                  onClick={() => onRemoveOperation(operation.id)}
+                  disabled={complexAdd.operations.length <= 1}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Grid>
+            </Grid>
+          ))}
+          
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Button 
+              startIcon={<AddIcon />}
+              onClick={onAddOperation}
+              variant="outlined"
+            >
+              Add Operation
+            </Button>
+          </Box>
+        </Paper>
+        
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            Total: {complexAdd.operations.length} operations
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {complexAdd.date && formatDate(complexAdd.date)}
+          </Typography>
         </Box>
-      </Paper>
-      
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          Total: {complexAdd.operations.length} operations
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {complexAdd.date && formatDate(complexAdd.date)}
-        </Typography>
-      </Box>
-    </DialogContent>
-    <DialogActions>
-      <Button onClick={onClose}>Cancel</Button>
-      <Button 
-        onClick={onSave} 
-        variant="contained" 
-        color="primary" 
-        disabled={loading || !complexAdd.date || !complexAdd.location || complexAdd.operations.some(op => !op.time)}
-      >
-        {loading ? <CircularProgress size={24} /> : 'Save All'}
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button 
+          onClick={onSave} 
+          variant="contained" 
+          color="primary" 
+          disabled={loading || !complexAdd.date || !complexAdd.location || complexAdd.operations.some(op => !op.time)}
+        >
+          {loading ? <CircularProgress size={24} /> : 'Save All'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 // Компонент диалога редактирования локации
 export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
@@ -197,9 +211,18 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
   onDeleteSingleOperation,
   onAddOperation
 }) => {
-  // Sorting events by time for better usability
+  // Сортировка событий - операции с пустым временем располагаются в конце
   const sortedEvents = locationEditData?.events 
-    ? [...locationEditData.events].sort((a, b) => a.time.localeCompare(b.time)) 
+    ? [...locationEditData.events].sort((a, b) => {
+        // Если обе операции имеют время, сортируем по времени
+        if (a.time && b.time) {
+          return a.time.localeCompare(b.time);
+        }
+        // Операции с пустым временем всегда в конце списка
+        if (!a.time) return 1;
+        if (!b.time) return -1;
+        return 0;
+      })
     : [];
     
   // Check if any required fields are empty

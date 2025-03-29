@@ -211,17 +211,17 @@ const DPHoursPage = () => {
   // Добавление новой операции в комплексном добавлении
   const handleAddOperation = () => {
     if (complexAdd) {
-    setComplexAdd({
-      ...complexAdd,
-      operations: [
-        ...complexAdd.operations,
-        {
-          id: Date.now().toString(),
-          time: '',
-          operationType: 'DP Setup'
-        }
-      ]
-    });
+      setComplexAdd({
+        ...complexAdd,
+        operations: [
+          ...complexAdd.operations,
+          {
+            id: Date.now().toString(),
+            time: '',
+            operationType: 'DP Setup'
+          }
+        ]
+      });
     }
   };
   
@@ -361,7 +361,7 @@ const DPHoursPage = () => {
         operationType: 'DP Setup'
       };
       
-      // Добавляем новую операцию к существующим
+      // Добавляем новую операцию к существующим в конец списка
       setLocationEditData({
         ...locationEditData,
         events: [...locationEditData.events, newOperation]
