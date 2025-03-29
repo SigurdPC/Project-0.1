@@ -95,12 +95,26 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       }
     });
     
-    // Process all results
+    // Process all results and deduplicate
+    // Создаем набор уникальных ключей результатов, чтобы избежать дублирования
+    const processedResultKeys = new Set<string>();
+    
     results.forEach(result => {
       const { operationId, date, shiftId, shiftStart, shiftEnd, minutesInShift } = result;
       const operation = operations.find(op => op.id === operationId);
       
       if (!operation) return;
+      
+      // Создаем уникальный ключ для этого результата
+      const resultKey = `${operationId}-${date}-${shiftId}`;
+      
+      // Проверяем, был ли этот результат уже обработан
+      if (processedResultKeys.has(resultKey)) {
+        return; // Пропускаем дубликаты
+      }
+      
+      // Помечаем результат как обработанный
+      processedResultKeys.add(resultKey);
       
       // Check if this is part of a multi-day operation
       if (multiDayOperations[operationId]) {
@@ -122,54 +136,58 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
         // Increase the total operation time
         multiDayOp.totalMinutes += minutesInShift;
       } else {
-        // This is a single-day operation, group by date
-        if (!dateGroups[date]) {
-          dateGroups[date] = {
+        // Группируем однодневные операции ТОЛЬКО ПО ДАТЕ, а не по операции и дате
+        const dateKey = date;
+        
+        if (!dateGroups[dateKey]) {
+          dateGroups[dateKey] = {
             date,
             shifts: [],
             totalMinutes: 0,
-            operations: []
+            operations: [operationId]
           };
-        }
-        
-        // Add the operation ID if it's not already in the list
-        if (!dateGroups[date].operations.includes(operationId)) {
-          dateGroups[date].operations.push(operationId);
+        } else if (!dateGroups[dateKey].operations.includes(operationId)) {
+          // Add the operation ID if it's not already in the list
+          dateGroups[dateKey].operations.push(operationId);
         }
         
         // Add shift information if it doesn't exist yet
-        const shiftExists = dateGroups[date].shifts.some(
+        const shiftExists = dateGroups[dateKey].shifts.some(
           s => s.shiftId === shiftId && s.shiftStart === shiftStart && s.shiftEnd === shiftEnd
         );
         
         if (!shiftExists) {
-          dateGroups[date].shifts.push({
+          dateGroups[dateKey].shifts.push({
             shiftId,
             shiftStart,
             shiftEnd
           });
         }
         
-        // Increase the total time for this date
-        dateGroups[date].totalMinutes += minutesInShift;
+        // Increase the total time for this date (все операции за один день)
+        dateGroups[dateKey].totalMinutes += minutesInShift;
       }
     });
     
-    // Convert multi-day operations to array
-    const multiDayArray = Object.values(multiDayOperations).filter(op => op.totalMinutes > 0);
+    // Фильтруем операции с нулевыми результатами
+    const multiDayArray = Object.values(multiDayOperations)
+      .filter(op => op.totalMinutes > 0);
     
-    // Convert date groups to array and create simulated operation groups
-    const dateArray = Object.values(dateGroups).map(group => ({
-      operationId: group.operations.join(','), // Join operation IDs for a unique key
-      date: group.date,
-      startDate: group.date, // For single-day operations, start and end dates are the same
-      endDate: group.date,
-      shifts: group.shifts,
-      totalMinutes: group.totalMinutes
-    }));
+    // Convert date groups to array
+    const dateArray = Object.values(dateGroups);
     
-    // Combine and sort by date
-    const combined = [...multiDayArray, ...dateArray].sort((a, b) => 
+    // Объединяем и преобразуем данные для отображения
+    const combined = [
+      ...multiDayArray,
+      ...dateArray.map(group => ({
+        operationId: group.operations.join(','),
+        date: group.date,
+        startDate: group.date,
+        endDate: group.date,
+        shifts: group.shifts,
+        totalMinutes: group.totalMinutes
+      }))
+    ].sort((a, b) => 
       a.startDate > b.startDate ? 1 : a.startDate < b.startDate ? -1 : 0
     );
     

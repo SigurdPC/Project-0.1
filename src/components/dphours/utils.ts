@@ -411,138 +411,97 @@ const calculateTimeInShift = (
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
   };
 
-  const shiftStartMin = toMinutes(shiftStart);
-  const shiftEndMin = toMinutes(shiftEnd);
-  const dayTotalMinutes = 24 * 60; // Всего минут в сутках
-
-  // Определяем начало и конец операции для данной даты
-  let opStartMin: number;
-  let opEndMin: number;
+  // Для операции конкретно в этот день
+  let opStartMin = 0;
+  let opEndMin = 24 * 60 - 1; // 23:59
   let opStartTimeForDay: string | null = null;
   let opEndTimeForDay: string | null = null;
 
-  // Операция начинается в тот же день
+  // Если операция начинается в этот день, установим фактическое время начала
   if (operationDate === operationStartDate) {
     opStartMin = toMinutes(operationStartTime);
     opStartTimeForDay = operationStartTime;
-  } else if (operationDate > operationStartDate) {
-    // Операция началась раньше текущего дня
-    opStartMin = 0; // Начало дня
-    opStartTimeForDay = '00:00';
-  } else {
+  } else if (operationDate < operationStartDate) {
     // Операция еще не началась в этот день
     return { minutes: 0, startTime: null, endTime: null };
+  } else {
+    // Операция началась в предыдущий день, начинаем с 00:00
+    opStartMin = 0;
+    opStartTimeForDay = '00:00';
   }
 
-  // Операция заканчивается в тот же день
+  // Если операция заканчивается в этот день, установим фактическое время окончания
   if (operationEndDate === operationDate && operationEndTime) {
     opEndMin = toMinutes(operationEndTime);
     opEndTimeForDay = operationEndTime;
   } else if (operationEndDate && operationDate > operationEndDate) {
     // Операция уже закончилась до этого дня
     return { minutes: 0, startTime: null, endTime: null };
-  } else if (!operationEndDate || operationDate < operationEndDate) {
-    // Операция продолжается после этого дня или все еще идет
-    opEndMin = dayTotalMinutes - 1; // Конец дня (23:59)
-    opEndTimeForDay = '23:59';
   } else {
-    // Некорректные данные
-    return { minutes: 0, startTime: null, endTime: null };
+    // Операция продолжается после этого дня, заканчиваем в 23:59
+    opEndMin = 24 * 60 - 1;
+    opEndTimeForDay = '23:59';
   }
 
-  // Расчет пересечения операции и смены
-  let intersectionStartMin: number;
-  let intersectionEndMin: number;
+  // Расчет минут в смене
+  let minutesInShift = 0;
+  const shiftStartMin = toMinutes(shiftStart);
+  const shiftEndMin = toMinutes(shiftEnd);
 
   if (isOvernightShift) {
-    // Ночная смена (например, 22:00 - 06:00)
-    if (opStartMin >= shiftStartMin) {
-      // Начало операции в тот же день после начала смены
-      intersectionStartMin = opStartMin;
-    } else if (opStartMin < shiftEndMin) {
-      // Начало операции в тот же день до окончания смены (утром)
-      intersectionStartMin = 0;
-    } else {
-      // Операция не пересекается со сменой
-      return { minutes: 0, startTime: null, endTime: null };
-    }
-
-    if (opEndMin <= shiftEndMin) {
-      // Окончание операции до окончания смены (утром)
-      intersectionEndMin = opEndMin;
-    } else if (opEndMin >= shiftStartMin) {
-      // Окончание операции после начала смены (вечером)
-      intersectionEndMin = dayTotalMinutes;
-    } else {
-      // Операция не пересекается со сменой
-      return { minutes: 0, startTime: null, endTime: null };
-    }
-
-    // Расчет общего времени (может быть в двух интервалах: вечер и утро)
-    let totalMinutes = 0;
-
-    // Проверяем вечерний интервал
-    if (opStartMin <= dayTotalMinutes && opEndMin >= shiftStartMin) {
-      const eveningStart = Math.max(opStartMin, shiftStartMin);
-      const eveningEnd = Math.min(opEndMin, dayTotalMinutes);
-      if (eveningEnd > eveningStart) {
-        totalMinutes += (eveningEnd - eveningStart);
+    // Ночная смена (переход через полночь)
+    // Первая часть смены: от начала смены до полуночи
+    if (opStartMin <= 24 * 60 - 1 && opEndMin >= shiftStartMin) {
+      const start = Math.max(opStartMin, shiftStartMin);
+      const end = Math.min(opEndMin, 24 * 60 - 1);
+      if (end >= start) {
+        minutesInShift += (end - start);
         
-        // Обновляем время начала в смене, если операция началась в вечернюю часть
-        if (intersectionStartMin === opStartMin && opStartMin >= shiftStartMin) {
-          opStartTimeForDay = toTimeString(eveningStart);
+        // Если операция начинается в вечернюю часть смены
+        if (opStartMin >= shiftStartMin && opStartTimeForDay === operationStartTime) {
+          opStartTimeForDay = toTimeString(start);
         }
       }
     }
 
-    // Проверяем утренний интервал
+    // Вторая часть смены: от полуночи до конца смены
     if (opStartMin <= shiftEndMin && opEndMin >= 0) {
-      const morningStart = Math.max(opStartMin, 0);
-      const morningEnd = Math.min(opEndMin, shiftEndMin);
-      if (morningEnd > morningStart) {
-        totalMinutes += (morningEnd - morningStart);
+      const start = Math.max(opStartMin, 0);
+      const end = Math.min(opEndMin, shiftEndMin);
+      if (end >= start) {
+        minutesInShift += (end - start);
         
-        // Обновляем время окончания в смене, если операция закончилась в утреннюю часть
-        if (intersectionEndMin === opEndMin && opEndMin <= shiftEndMin) {
-          opEndTimeForDay = toTimeString(morningEnd);
+        // Если операция заканчивается в утреннюю часть смены
+        if (opEndMin <= shiftEndMin && opEndTimeForDay === operationEndTime) {
+          opEndTimeForDay = toTimeString(end);
         }
       }
     }
-
-    return { 
-      minutes: totalMinutes,
-      startTime: opStartTimeForDay,
-      endTime: opEndTimeForDay
-    };
   } else {
-    // Дневная смена (например, 08:00 - 20:00)
-    intersectionStartMin = Math.max(opStartMin, shiftStartMin);
-    intersectionEndMin = Math.min(opEndMin, shiftEndMin);
+    // Обычная дневная смена
+    // Проверяем, пересекается ли операция со сменой
+    const start = Math.max(opStartMin, shiftStartMin);
+    const end = Math.min(opEndMin, shiftEndMin);
 
-    if (intersectionEndMin <= intersectionStartMin) {
-      // Операция не пересекается со сменой
-      return { minutes: 0, startTime: null, endTime: null };
+    if (end >= start) {
+      minutesInShift = end - start;
+
+      // Уточняем фактическое время начала и окончания внутри смены
+      if (start > opStartMin) {
+        opStartTimeForDay = toTimeString(start);
+      }
+
+      if (end < opEndMin) {
+        opEndTimeForDay = toTimeString(end);
+      }
     }
-
-    // Если время начала/окончания определено операцией, а не границами дня/смены
-    if (intersectionStartMin === opStartMin) {
-      opStartTimeForDay = operationStartTime;
-    } else {
-      opStartTimeForDay = toTimeString(intersectionStartMin);
-    }
-
-    if (intersectionEndMin === opEndMin) {
-      opEndTimeForDay = operationEndTime || '23:59';
-    } else {
-      opEndTimeForDay = toTimeString(intersectionEndMin);
-    }
-
-    return { 
-      minutes: intersectionEndMin - intersectionStartMin,
-      startTime: opStartTimeForDay,
-      endTime: opEndTimeForDay
-    };
   }
+
+  return {
+    minutes: minutesInShift,
+    startTime: opStartTimeForDay,
+    endTime: opEndTimeForDay
+  };
 };
 
 /**
@@ -572,6 +531,19 @@ export const calculateOperationTimesByShifts = (
     datesInRange.forEach(date => {
       // Для каждой смены рассчитываем время
       shifts.forEach(shift => {
+        // Проверяем, есть ли уже операция с таким же ID в результатах для текущей даты и смены
+        const existingResult = results.find(
+          r => r.operationId === operation.id && 
+               r.date === date && 
+               r.shiftId === shift.id
+        );
+        
+        if (existingResult) {
+          // Если эта операция уже была обработана для этой даты и смены,
+          // пропускаем дублирующий расчет
+          return;
+        }
+
         const { minutes, startTime, endTime } = calculateTimeInShift(
           date,
           operation.startDate,
