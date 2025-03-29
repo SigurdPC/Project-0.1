@@ -67,17 +67,8 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
 }) => {
   const { isNightMode } = useTheme();
   
-  // Сортировка операций - новые операции с пустым временем должны быть в конце списка
-  const sortedOperations = [...complexAdd.operations].sort((a, b) => {
-    // Если обе операции имеют время, сортируем по времени
-    if (a.time && b.time) {
-      return a.time.localeCompare(b.time);
-    }
-    // Операции с пустым временем всегда в конце списка
-    if (!a.time) return 1;
-    if (!b.time) return -1;
-    return 0;
-  });
+  // Используем операции в исходном порядке без сортировки
+  const operations = complexAdd.operations;
 
   return (
     <Dialog 
@@ -129,15 +120,15 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
             borderColor: isNightMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'
           }}
         >
-          {sortedOperations.map((operation, index) => (
+          {operations.map((operation, index) => (
             <Grid 
               container 
               spacing={2} 
               key={operation.id}
               sx={{ 
                 mb: 2,
-                pb: index < sortedOperations.length - 1 ? 2 : 0,
-                borderBottom: index < sortedOperations.length - 1 
+                pb: index < operations.length - 1 ? 2 : 0,
+                borderBottom: index < operations.length - 1 
                   ? `1px dashed ${isNightMode ? 'rgba(255, 255, 255, 0.12)' : '#ccc'}`
                   : 'none'
               }}
@@ -252,19 +243,8 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
 }) => {
   const { isNightMode } = useTheme();
   
-  // Сортировка событий - операции с пустым временем располагаются в конце
-  const sortedEvents = locationEditData?.events 
-    ? [...locationEditData.events].sort((a, b) => {
-        // Если обе операции имеют время, сортируем по времени
-        if (a.time && b.time) {
-          return a.time.localeCompare(b.time);
-        }
-        // Операции с пустым временем всегда в конце списка
-        if (!a.time) return 1;
-        if (!b.time) return -1;
-        return 0;
-      })
-    : [];
+  // Используем исходный порядок событий без сортировки
+  const events = locationEditData?.events || [];
     
   // Check if any required fields are empty
   const hasEmptyFields = locationEditData?.events 
@@ -322,7 +302,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                 borderColor: isNightMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'
               }}
             >
-              {sortedEvents.map((event, index) => (
+              {events.map((event, index) => (
                 <Grid 
                   container 
                   spacing={2} 
@@ -330,7 +310,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                   sx={{ 
                     mb: 2,
                     pb: 2,
-                    borderBottom: index < sortedEvents.length - 1 
+                    borderBottom: index < events.length - 1 
                       ? `1px dashed ${isNightMode ? 'rgba(255, 255, 255, 0.12)' : '#ccc'}`
                       : 'none'
                   }}

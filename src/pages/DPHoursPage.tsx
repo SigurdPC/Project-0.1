@@ -268,12 +268,11 @@ const DPHoursPage = () => {
       return;
     }
     
-    const sortedOperations = [...complexAdd.operations].sort((a, b) => 
-      a.time.localeCompare(b.time)
-    );
+    // Используем операции в исходном порядке без сортировки
+    const operations = complexAdd.operations;
     
     try {
-      for (const op of sortedOperations) {
+      for (const op of operations) {
         await addEvent({
           date: complexAdd.date,
           time: op.time,
@@ -284,7 +283,7 @@ const DPHoursPage = () => {
       
       setComplexAdd(null);
       
-      showSnackbar(`Добавлено ${sortedOperations.length} событий`, 'success');
+      showSnackbar(`Добавлено ${operations.length} событий`, 'success');
     } catch (err) {
       console.error('Failed to add events:', err);
       showSnackbar('Не удалось добавить события', 'error');
@@ -411,40 +410,35 @@ const DPHoursPage = () => {
       });
   };
 
-  // История: сохранение изменений локации
-  const handleSaveLocationEdit = async () => {
-    if (!locationEditData) return;
-    
-    // Проверяем наличие локации
-    if (!locationEditData.newLocation || locationEditData.newLocation.trim() === '') {
-      showSnackbar('Пожалуйста, укажите название локации', 'warning');
-      return;
-    }
-    
-    // Проверяем наличие даты
-    if (!locationEditData.date || locationEditData.date.trim() === '') {
-      showSnackbar('Пожалуйста, укажите дату', 'warning');
-      return;
-    }
-    
-    // Проверяем, заполнены ли все обязательные поля операций
-    const hasEmptyFields = locationEditData.events.some(event => 
-      !event.time || event.time.trim() === '' || 
-      !event.operationType
-    );
-    
-    if (hasEmptyFields) {
-      showSnackbar('Пожалуйста, заполните все поля для операций', 'warning');
-      return;
-    }
+  // Обработчик сохранения изменений отдельной записи
+  const handleSaveEdit = async () => {
+    if (!editFormData?.id) return;
     
     try {
-      // Сортируем операции по времени перед сохранением
-      const sortedEvents = [...locationEditData.events].sort((a, b) => 
-        a.time.localeCompare(b.time)
-      );
+      const success = await updateEvent(editFormData.id, editFormData);
       
-      for (const event of sortedEvents) {
+      if (success) {
+      setIsEditDialogOpen(false);
+      setEditFormData(null);
+      showSnackbar('Operation updated successfully', 'success');
+      } else {
+        showSnackbar('Failed to update operation', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to update operation:', error);
+      showSnackbar('Failed to update operation', 'error');
+    }
+  };
+  
+  // Обработчик сохранения локации (группы событий)
+  const handleSaveLocation = async () => {
+    if (!locationEditData) return;
+    
+    try {
+      // Используем события в том порядке, в каком они представлены в интерфейсе
+      const events = locationEditData.events;
+      
+      for (const event of events) {
         const eventId = event.id;
         const isNewRecord = !eventId || String(eventId).startsWith('temp-');
           
@@ -471,26 +465,6 @@ const DPHoursPage = () => {
     } catch (error) {
       console.error('Failed to update location:', error);
       showSnackbar('Не удалось обновить записи', 'error');
-    }
-  };
-
-  // Обработчик сохранения изменений отдельной записи
-  const handleSaveEdit = async () => {
-    if (!editFormData?.id) return;
-    
-    try {
-      const success = await updateEvent(editFormData.id, editFormData);
-      
-      if (success) {
-      setIsEditDialogOpen(false);
-      setEditFormData(null);
-      showSnackbar('Operation updated successfully', 'success');
-      } else {
-        showSnackbar('Failed to update operation', 'error');
-      }
-    } catch (error) {
-      console.error('Failed to update operation:', error);
-      showSnackbar('Failed to update operation', 'error');
     }
   };
 
@@ -861,7 +835,7 @@ const DPHoursPage = () => {
         loading={loading}
         locationEditData={locationEditData}
         onClose={handleCancelLocationEdit}
-        onSave={handleSaveLocationEdit}
+        onSave={handleSaveLocation}
         onLocationDateChange={handleLocationDateChange}
         onLocationNameChange={handleLocationNameChange}
         onLocationOperationChange={handleLocationOperationChange}

@@ -21,11 +21,10 @@ export const useEventGroups = (): EventGroupsHook => {
     // Temporary structure for grouping
     const tempGroups: Record<string, DPHours[][]> = {};
     
-    // First sort events by time
-    const sortedEvents = [...dateEvents].sort((a, b) => a.time.localeCompare(b.time));
+    // Используем события в исходном порядке без сортировки
     
     // Process all events
-    sortedEvents.forEach((event) => {
+    dateEvents.forEach((event) => {
       const location = event.location;
       
       // Initialize structure for location if it doesn't exist yet

@@ -74,13 +74,16 @@ const LocationCard: React.FC<LocationCardProps> = ({
       <Box 
         sx={{ 
           p: 1.5, 
-          bgcolor: isNightMode ? '#374151' : 'primary.light', 
+          bgcolor: isNightMode ? '#374151' : '#1976d2', 
           color: isNightMode ? 'rgba(255, 255, 255, 0.85)' : 'white',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           cursor: 'pointer',
-          transition: 'background-color 0.2s ease'
+          transition: 'background-color 0.2s ease',
+          '&:hover': {
+            bgcolor: isNightMode ? '#374151' : '#1565c0'
+          }
         }}
         onClick={handleToggleExpand}
       >

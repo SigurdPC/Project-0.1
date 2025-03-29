@@ -13,6 +13,7 @@ import {
 } from '@mui/icons-material';
 import { DPHours } from '../types';
 import { formatDate } from '../utils';
+import { useTheme } from '../../../providers/ThemeProvider';
 
 interface HistoryItemProps {
   date: string;
@@ -31,6 +32,8 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
   locationsCount,
   children
 }) => {
+  const { isNightMode } = useTheme();
+  
   return (
     <Paper 
       sx={{ 
@@ -48,11 +51,15 @@ const HistoryItem: React.FC<HistoryItemProps> = ({
           justifyContent: 'space-between',
           alignItems: 'center',
           cursor: 'pointer',
-          bgcolor: isExpanded ? 'primary.light' : 'inherit',
+          bgcolor: isExpanded 
+            ? (isNightMode ? 'primary.light' : '#1976d2') 
+            : 'inherit',
           color: isExpanded ? 'white' : 'inherit',
           transition: 'background-color 0.3s',
           '&:hover': {
-            bgcolor: isExpanded ? 'primary.light' : 'rgba(0,0,0,0.02)'
+            bgcolor: isExpanded 
+              ? (isNightMode ? 'primary.light' : '#1565c0')
+              : 'rgba(0,0,0,0.02)'
           }
         }}
         onClick={onToggleExpand}

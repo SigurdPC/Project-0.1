@@ -47,11 +47,10 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
     // Временная структура для группировки
     const tempGroups: Record<string, DPHours[][]> = {};
     
-    // Сначала сортируем события по времени
-    const sortedEvents = [...events].sort((a, b) => a.time.localeCompare(b.time));
+    // Используем события в исходном порядке без сортировки
     
     // Проходим по всем событиям
-    sortedEvents.forEach((event) => {
+    events.forEach((event) => {
       const location = event.location;
       
       // Инициализируем структуру для локации, если её ещё нет
@@ -158,13 +157,16 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
                 onClick={() => handleToggleExpand(locationKey)}
                 sx={{ 
                   p: 1.5, 
-                  bgcolor: isNightMode ? '#374151' : 'primary.light', 
+                  bgcolor: isNightMode ? '#374151' : '#1976d2', 
                   color: isNightMode ? 'rgba(255, 255, 255, 0.85)' : 'white',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   cursor: 'pointer',
-                  transition: 'background-color 0.2s ease'
+                  transition: 'background-color 0.2s ease',
+                  '&:hover': {
+                    bgcolor: isNightMode ? '#374151' : '#1565c0',
+                  }
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
