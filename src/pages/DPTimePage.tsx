@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Container, Typography, Box, Paper, Alert, CircularProgress, Snackbar,
-  useTheme, alpha
+  useTheme as useMuiTheme, alpha
 } from '@mui/material';
 import { 
   SailingOutlined, 
@@ -14,6 +14,7 @@ import DPTimeResults from '../components/dphours/views/DPTimeResults';
 import { DPTimeOperation, Shift, TimeCalculationResult } from '../components/dphours/types';
 import { calculateOperationTimesByShifts, getDPTimeOperations } from '../components/dphours/utils';
 import { useDataManagement } from '../components/dphours/hooks/useDataManagement';
+import { useTheme } from '../providers/ThemeProvider';
 
 interface DateRange {
   startDate: string;
@@ -28,7 +29,8 @@ interface SnackbarState {
 }
 
 export const DPTimePage = () => {
-  const theme = useTheme();
+  const muiTheme = useMuiTheme();
+  const { isNightMode } = useTheme();
   const { data, loading, error } = useDataManagement();
   const [results, setResults] = useState<TimeCalculationResult[]>([]);
   const [operations, setOperations] = useState<DPTimeOperation[]>([]);
@@ -147,19 +149,19 @@ export const DPTimePage = () => {
   const maritimeStyles = {
     container: {
       backgroundImage: 'linear-gradient(to bottom, #e6f7ff, #ffffff)',
-      borderRadius: theme.shape.borderRadius,
+      borderRadius: muiTheme.shape.borderRadius,
       pt: 3
     },
     header: {
       display: 'flex',
       alignItems: 'center',
       mb: 2,
-      borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+      borderBottom: `1px solid ${alpha(muiTheme.palette.primary.main, 0.2)}`,
       pb: 2
     },
     iconContainer: {
       mr: 2,
-      color: theme.palette.primary.main,
+      color: muiTheme.palette.primary.main,
       animation: 'bob 3s ease-in-out infinite',
       '@keyframes bob': {
         '0%': { transform: 'translateY(0)' },
@@ -175,7 +177,7 @@ export const DPTimePage = () => {
       height: '15px',
       opacity: 0.2,
       zIndex: 0,
-      backgroundColor: theme.palette.primary.main,
+      backgroundColor: muiTheme.palette.primary.main,
       backgroundImage: 'linear-gradient(45deg, transparent 50%, rgba(255,255,255,.5) 50%)',
       backgroundSize: '10px 10px'
     },
@@ -183,23 +185,25 @@ export const DPTimePage = () => {
       position: 'relative',
       overflow: 'hidden',
       borderRadius: '8px',
-      boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.15)}`,
-      border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+      boxShadow: `0 4px 20px ${alpha(muiTheme.palette.primary.main, 0.15)}`,
+      border: `1px solid ${alpha(muiTheme.palette.primary.main, 0.1)}`
     },
     emptyResultsMessage: {
       py: 6,
       px: 3,
       textAlign: 'center',
-      color: alpha(theme.palette.text.secondary, 0.8),
+      color: alpha(muiTheme.palette.text.secondary, 0.8),
       fontStyle: 'italic'
     }
   };
   
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
-      <Typography variant="h5" gutterBottom align="center" sx={{ mb: 3, fontWeight: 500 }}>
-        DP Time
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>
+          DP Time Calculator
+        </Typography>
+      </Box>
       
       <Box sx={{ 
         ...maritimeStyles.container,
@@ -288,7 +292,7 @@ export const DPTimePage = () => {
               borderRadius: '8px',
               boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               '& .MuiAlert-icon': { 
-                color: theme.palette.primary.main 
+                color: muiTheme.palette.primary.main 
               }
             }}
           >

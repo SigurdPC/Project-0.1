@@ -11,6 +11,7 @@ import {
 import { Shift, TimeCalculationSettings } from '../types';
 import ShiftInput from '../components/ShiftInput';
 import AppDatePicker from '../../common/AppDatePicker';
+import { useTheme as useCustomTheme } from '../../../providers/ThemeProvider';
 
 interface DPTimeSettingsProps {
   settings: TimeCalculationSettings;
@@ -36,6 +37,7 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
   onCalculate
 }) => {
   const theme = useTheme();
+  const { isNightMode } = useCustomTheme();
   
   // Validation check before calculation
   const isValid = (): boolean => {
@@ -80,11 +82,14 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
       }
     },
     calculateButton: {
-      background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.light} 90%)`,
-      boxShadow: `0 3px 5px 2px ${alpha(theme.palette.primary.main, 0.3)}`,
+      backgroundColor: isNightMode ? '#2c3e50' : theme.palette.primary.main,
+      color: isNightMode ? 'rgba(255, 255, 255, 0.85)' : '#ffffff',
+      boxShadow: isNightMode 
+        ? '0 2px 4px rgba(0,0,0,0.4)' 
+        : `0 3px 5px 2px ${alpha(theme.palette.primary.main, 0.3)}`,
       transition: 'all 0.3s ease',
       '&:hover': {
-        background: `linear-gradient(45deg, ${theme.palette.primary.dark} 30%, ${theme.palette.primary.main} 90%)`
+        backgroundColor: isNightMode ? '#34495e' : theme.palette.primary.dark,
       }
     }
   };
@@ -141,14 +146,18 @@ const DPTimeSettings: React.FC<DPTimeSettingsProps> = ({
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
         <Button
           variant="contained"
-          color="primary"
           disabled={loading || !isValid()}
           onClick={onCalculate}
           size="large"
           startIcon={loading ? undefined : <WaterOutlined />}
           sx={{ 
             ...maritimeStyles.calculateButton,
-            minWidth: 150 
+            minWidth: 150,
+            borderRadius: '6px',
+            textTransform: 'uppercase',
+            fontWeight: 500,
+            py: 1,
+            px: 3
           }}
         >
           {loading ? <CircularProgress size={24} /> : 'Calculate'}

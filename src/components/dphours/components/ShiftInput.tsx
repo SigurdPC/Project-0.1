@@ -9,6 +9,7 @@ import {
   WbTwilight as WbTwilightIcon
 } from '@mui/icons-material';
 import { Shift } from '../types';
+import { useTheme as useCustomTheme } from '../../../providers/ThemeProvider';
 
 interface ShiftInputProps {
   shifts: Shift[];
@@ -21,6 +22,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
   shifts, onAddShift, onUpdateShift, onDeleteShift 
 }) => {
   const theme = useTheme();
+  const { isNightMode } = useCustomTheme();
   
   // Handler for time change in a shift
   const handleTimeChange = (id: string, field: 'startTime' | 'endTime', value: string) => {
@@ -61,18 +63,9 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
       p: 2, 
       mb: 2,
       borderRadius: '8px',
-      boxShadow: `0 3px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
-      border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-      background: `linear-gradient(to bottom, ${alpha(theme.palette.background.paper, 0.9)}, ${theme.palette.background.paper})`,
-      '&::before': {
-        content: '""',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '3px',
-        background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`
-      }
+      boxShadow: isNightMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.1)',
+      border: `1px solid ${isNightMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+      bgcolor: isNightMode ? '#1e1e1e' : theme.palette.background.paper,
     },
     header: {
       display: 'flex',
@@ -80,7 +73,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
       mb: 2
     },
     headerIcon: {
-      color: theme.palette.primary.main,
+      color: isNightMode ? '#90caf9' : theme.palette.primary.main,
       mr: 1
     },
     shiftRow: {
@@ -97,19 +90,19 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
       left: '10%',
       right: '10%',
       height: '1px',
-      background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.2)}, transparent)`
+      background: isNightMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
     },
     timeField: {
       '& .MuiOutlinedInput-root': {
         transition: 'all 0.3s ease',
         '&:hover': {
-          borderColor: theme.palette.primary.light
+          borderColor: isNightMode ? 'rgba(255,255,255,0.3)' : theme.palette.primary.light
         },
         '&:hover fieldset': {
-          borderColor: theme.palette.primary.light,
+          borderColor: isNightMode ? 'rgba(255,255,255,0.3)' : theme.palette.primary.light,
         },
         '&.Mui-focused fieldset': {
-          borderColor: theme.palette.primary.main,
+          borderColor: isNightMode ? '#90caf9' : theme.palette.primary.main,
           borderWidth: 2,
         }
       }
@@ -119,20 +112,20 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
       fontStyle: 'italic',
       fontSize: '0.85rem',
       border: '1px solid',
-      borderColor: theme.palette.primary.light,
+      borderColor: isNightMode ? 'rgba(144, 202, 249, 0.5)' : theme.palette.primary.light,
       borderRadius: '16px',
       padding: '2px 10px',
-      color: theme.palette.primary.main,
-      background: alpha(theme.palette.primary.light, 0.1)
+      color: isNightMode ? '#90caf9' : theme.palette.primary.main,
+      background: isNightMode ? 'rgba(144, 202, 249, 0.1)' : alpha(theme.palette.primary.light, 0.1)
     },
     addButton: {
       mt: 1,
-      background: alpha(theme.palette.primary.main, 0.05),
-      borderColor: theme.palette.primary.light,
-      color: theme.palette.primary.main,
+      background: isNightMode ? 'rgba(144, 202, 249, 0.05)' : alpha(theme.palette.primary.main, 0.05),
+      borderColor: isNightMode ? 'rgba(144, 202, 249, 0.5)' : theme.palette.primary.light,
+      color: isNightMode ? '#90caf9' : theme.palette.primary.main,
       transition: 'all 0.3s ease',
       '&:hover': {
-        background: alpha(theme.palette.primary.main, 0.1)
+        background: isNightMode ? 'rgba(144, 202, 249, 0.15)' : alpha(theme.palette.primary.main, 0.1)
       }
     },
     deleteIcon: {

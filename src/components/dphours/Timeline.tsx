@@ -10,6 +10,7 @@ import {
   ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
 import { DPHours, operationColors } from './types';
+import { useTheme } from '../../providers/ThemeProvider';
 
 // Определение типа TimelineProps
 interface TimelineProps {
@@ -21,6 +22,7 @@ interface TimelineProps {
 
 // Компонент Timeline для отображения событий
 const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onDelete }) => {
+  const { isNightMode } = useTheme();
   // Состояние для хранения информации о свернутых/развернутых локациях
   const [expandedLocations, setExpandedLocations] = useState<Record<string, boolean>>({});
   
@@ -143,7 +145,7 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
   }
   
   return (
-    <Box>
+    <Box sx={{ mt: 2 }}>
       {Object.entries(eventsByLocation).map(([location, locationGroups]) => (
         // Отображаем каждую группу отдельно
         locationGroups.map((locationEvents, groupIndex) => {
@@ -156,8 +158,8 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
                 onClick={() => handleToggleExpand(locationKey)}
                 sx={{ 
                   p: 1.5, 
-                  bgcolor: 'primary.light', 
-                  color: 'white',
+                  bgcolor: isNightMode ? '#374151' : 'primary.light', 
+                  color: isNightMode ? 'rgba(255, 255, 255, 0.85)' : 'white',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
@@ -167,25 +169,28 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
               >
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   {expanded ? <ExpandLessIcon sx={{ mr: 1 }} /> : <ExpandMoreIcon sx={{ mr: 1 }} />}
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    Location: {location}
+                  <Typography variant="subtitle1" fontWeight="medium">
+                    {`Location: ${location}`}
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="subtitle1" sx={{ mr: 1 }}>
+                  <Typography variant="body2" sx={{ mr: 1 }}>
                     {locationEvents.length} operations
                   </Typography>
                   <IconButton 
                     size="small" 
+                    sx={{ 
+                      color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : 'white', 
+                      mr: 0.5 
+                    }}
                     onClick={(e) => handleEditLocationClick(e, location, locationEvents)}
-                    sx={{ color: 'white', mr: 0.5 }}
                   >
                     <EditIcon fontSize="small" />
                   </IconButton>
                   <IconButton 
                     size="small" 
+                    sx={{ color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : 'white' }}
                     onClick={(e) => handleDeleteLocationClick(e, locationEvents)}
-                    sx={{ color: 'white' }}
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>

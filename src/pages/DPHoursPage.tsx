@@ -39,6 +39,7 @@ import DPTimeResults from '../components/dphours/views/DPTimeResults';
 import { useDataManagement } from '../components/dphours/hooks/useDataManagement';
 import { useEventFilters } from '../components/dphours/hooks/useEventFilters';
 import { useEventGroups } from '../components/dphours/hooks/useEventGroups';
+import { useTheme } from '../providers/ThemeProvider';
 
 interface Filters {
   startDate: string;
@@ -54,6 +55,9 @@ interface DateRange {
 }
 
 const DPHoursPage = () => {
+  // Получаем состояние ночного режима
+  const { isNightMode } = useTheme();
+  
   // Хуки управления данными и состоянием
   const { 
     data, loading, error, snackbar, showSnackbar, handleSnackbarClose,
@@ -211,17 +215,17 @@ const DPHoursPage = () => {
   // Добавление новой операции в комплексном добавлении
   const handleAddOperation = () => {
     if (complexAdd) {
-      setComplexAdd({
-        ...complexAdd,
-        operations: [
-          ...complexAdd.operations,
-          {
-            id: Date.now().toString(),
-            time: '',
-            operationType: 'DP Setup'
-          }
-        ]
-      });
+    setComplexAdd({
+      ...complexAdd,
+      operations: [
+        ...complexAdd.operations,
+        {
+          id: Date.now().toString(),
+          time: '',
+          operationType: 'DP Setup'
+        }
+      ]
+    });
     }
   };
   
@@ -718,9 +722,11 @@ const DPHoursPage = () => {
 
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
-      <Typography variant="h5" gutterBottom align="center" sx={{ mb: 3, fontWeight: 500 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 500 }}>
         DP Hours
       </Typography>
+      </Box>
       
       {/* Loading indicator */}
       {loading && (

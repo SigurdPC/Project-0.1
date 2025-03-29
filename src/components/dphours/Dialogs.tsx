@@ -13,6 +13,7 @@ import {
 import { DPHours, OperationType, DPSession, ComplexAddState, LocationEditData } from './types';
 import { formatDate, formatDuration } from './utils';
 import AppDatePicker from '../common/AppDatePicker';
+import { useTheme } from '../../providers/ThemeProvider';
 
 // Props для ComplexAddDialog
 interface ComplexAddDialogProps {
@@ -64,6 +65,8 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
   onOperationChange,
   onRemoveOperation
 }) => {
+  const { isNightMode } = useTheme();
+  
   // Сортировка операций - новые операции с пустым временем должны быть в конце списка
   const sortedOperations = [...complexAdd.operations].sort((a, b) => {
     // Если обе операции имеют время, сортируем по времени
@@ -83,6 +86,11 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
       maxWidth="md" 
       fullWidth
       scroll="paper"
+      PaperProps={{
+        sx: {
+          borderRadius: '8px',
+        }
+      }}
     >
       <DialogTitle>Add Operations</DialogTitle>
       <DialogContent dividers>
@@ -112,7 +120,15 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
           Operations
         </Typography>
         
-        <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+        <Paper 
+          variant="outlined" 
+          sx={{ 
+            p: 2, 
+            mb: 3,
+            bgcolor: isNightMode ? 'rgba(42, 42, 42, 0.5)' : 'inherit',
+            borderColor: isNightMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'
+          }}
+        >
           {sortedOperations.map((operation, index) => (
             <Grid 
               container 
@@ -121,7 +137,9 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
               sx={{ 
                 mb: 2,
                 pb: index < sortedOperations.length - 1 ? 2 : 0,
-                borderBottom: index < sortedOperations.length - 1 ? '1px dashed #ccc' : 'none'
+                borderBottom: index < sortedOperations.length - 1 
+                  ? `1px dashed ${isNightMode ? 'rgba(255, 255, 255, 0.12)' : '#ccc'}`
+                  : 'none'
               }}
             >
               <Grid item xs={12} sm={4}>
@@ -168,6 +186,14 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
               startIcon={<AddIcon />}
               onClick={onAddOperation}
               variant="outlined"
+              sx={{
+                color: isNightMode ? 'rgba(255, 255, 255, 0.8)' : undefined,
+                borderColor: isNightMode ? 'rgba(255, 255, 255, 0.3)' : undefined,
+                '&:hover': {
+                  backgroundColor: isNightMode ? 'rgba(255, 255, 255, 0.08)' : undefined,
+                  borderColor: isNightMode ? 'rgba(255, 255, 255, 0.5)' : undefined
+                }
+              }}
             >
               Add Operation
             </Button>
@@ -184,12 +210,25 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button 
+          onClick={onClose}
+          sx={{
+            color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : undefined
+          }}
+        >
+          Cancel
+        </Button>
         <Button 
           onClick={onSave} 
           variant="contained" 
-          color="primary" 
           disabled={loading || !complexAdd.date || !complexAdd.location || complexAdd.operations.some(op => !op.time)}
+          sx={{
+            bgcolor: isNightMode ? '#2c3e50' : 'primary.main',
+            color: isNightMode ? 'rgba(255, 255, 255, 0.9)' : undefined,
+            '&:hover': {
+              bgcolor: isNightMode ? '#34495e' : 'primary.dark'
+            }
+          }}
         >
           {loading ? <CircularProgress size={24} /> : 'Save All'}
         </Button>
@@ -211,6 +250,8 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
   onDeleteSingleOperation,
   onAddOperation
 }) => {
+  const { isNightMode } = useTheme();
+  
   // Сортировка событий - операции с пустым временем располагаются в конце
   const sortedEvents = locationEditData?.events 
     ? [...locationEditData.events].sort((a, b) => {
@@ -236,12 +277,17 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
       onClose={onClose}
       maxWidth="md"
       fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '8px',
+        }
+      }}
     >
       <DialogTitle>Edit Location</DialogTitle>
       <DialogContent>
         {locationEditData && (
           <>
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 3, mt: 0.5 }}>
               <Grid item xs={12} sm={6}>
                 <AppDatePicker
                   label="Date"
@@ -267,7 +313,15 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
               Operations
             </Typography>
             
-            <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 2, 
+                mb: 3,
+                bgcolor: isNightMode ? 'rgba(42, 42, 42, 0.5)' : 'inherit',
+                borderColor: isNightMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)'
+              }}
+            >
               {sortedEvents.map((event, index) => (
                 <Grid 
                   container 
@@ -276,7 +330,9 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                   sx={{ 
                     mb: 2,
                     pb: 2,
-                    borderBottom: index < sortedEvents.length - 1 ? '1px dashed #ccc' : 'none'
+                    borderBottom: index < sortedEvents.length - 1 
+                      ? `1px dashed ${isNightMode ? 'rgba(255, 255, 255, 0.12)' : '#ccc'}`
+                      : 'none'
                   }}
                 >
                   <Grid item xs={12} sm={4}>
@@ -323,6 +379,14 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                   variant="outlined"
                   startIcon={<AddIcon />}
                   onClick={onAddOperation}
+                  sx={{
+                    color: isNightMode ? 'rgba(255, 255, 255, 0.8)' : undefined,
+                    borderColor: isNightMode ? 'rgba(255, 255, 255, 0.3)' : undefined,
+                    '&:hover': {
+                      backgroundColor: isNightMode ? 'rgba(255, 255, 255, 0.08)' : undefined,
+                      borderColor: isNightMode ? 'rgba(255, 255, 255, 0.5)' : undefined
+                    }
+                  }}
                 >
                   Add Operation
                 </Button>
@@ -341,13 +405,26 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button 
+          onClick={onClose}
+          sx={{
+            color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : undefined
+          }}
+        >
+          Cancel
+        </Button>
         <Button 
           onClick={onSave} 
           variant="contained" 
-          color="primary"
           disabled={!locationEditData?.newLocation || !locationEditData?.date || loading || hasEmptyFields}
-          sx={{ ml: 1 }}
+          sx={{ 
+            ml: 1,
+            bgcolor: isNightMode ? '#2c3e50' : 'primary.main',
+            color: isNightMode ? 'rgba(255, 255, 255, 0.9)' : undefined,
+            '&:hover': {
+              bgcolor: isNightMode ? '#34495e' : 'primary.dark'
+            }
+          }}
         >
           {loading ? <CircularProgress size={24} /> : 'Save'}
         </Button>
@@ -365,83 +442,109 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
   onSave,
   onFormChange,
   onDelete
-}) => (
-  <Dialog
-    open={open}
-    onClose={onClose}
-    maxWidth="sm"
-    fullWidth
-  >
-    <DialogTitle>Edit Operation</DialogTitle>
-    <DialogContent>
-      <Grid container spacing={2} sx={{ mt: 2 }}>
-        <Grid item xs={12} sm={6}>
-          <AppDatePicker
-            label="Date"
-            value={editFormData?.date || null}
-            onChange={(date) => onFormChange('date', date || '')}
-            fullWidth
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            label="Time"
-            type="time"
-            value={editFormData?.time || ''}
-            onChange={(e) => onFormChange('time', e.target.value)}
-            fullWidth
-            size="small"
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            label="Location"
-            value={editFormData?.location || ''}
-            onChange={(e) => onFormChange('location', e.target.value)}
-            fullWidth
-            size="small"
-            placeholder="Enter location"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <FormControl fullWidth>
-            <InputLabel>Operation Type</InputLabel>
-            <Select
-              value={editFormData?.operationType || ''}
-              label="Operation Type"
-              onChange={(e) => onFormChange('operationType', e.target.value as OperationType)}
+}) => {
+  const { isNightMode } = useTheme();
+  
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '8px',
+        }
+      }}
+    >
+      <DialogTitle>Edit Operation</DialogTitle>
+      <DialogContent>
+        <Grid container spacing={2} sx={{ mt: 0.5 }}>
+          <Grid item xs={12} sm={6}>
+            <AppDatePicker
+              label="Date"
+              value={editFormData?.date || null}
+              onChange={(date) => onFormChange('date', date || '')}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Time"
+              type="time"
+              value={editFormData?.time || ''}
+              onChange={(e) => onFormChange('time', e.target.value)}
+              fullWidth
               size="small"
-            >
-              {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
-                <MenuItem key={type} value={type}>{type}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Location"
+              value={editFormData?.location || ''}
+              onChange={(e) => onFormChange('location', e.target.value)}
+              fullWidth
+              size="small"
+              placeholder="Enter location"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Operation Type</InputLabel>
+              <Select
+                value={editFormData?.operationType || ''}
+                label="Operation Type"
+                onChange={(e) => onFormChange('operationType', e.target.value as OperationType)}
+                size="small"
+              >
+                {(['DP Setup', 'Moving in', 'Handling Offshore', 'Pulling Out', 'DP OFF'] as OperationType[]).map(type => (
+                  <MenuItem key={type} value={type}>{type}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
         </Grid>
-      </Grid>
-    </DialogContent>
-    <DialogActions>
-      <Button 
-        onClick={onDelete} 
-        color="error" 
-        startIcon={<DeleteForeverIcon />}
-        sx={{ position: 'absolute', left: 16 }}
-      >
-        Delete
-      </Button>
-      <Box>
-        <Button onClick={onClose}>Cancel</Button>
+      </DialogContent>
+      <DialogActions sx={{ position: 'relative', px: 3, py: 2 }}>
         <Button 
-          onClick={onSave} 
-          variant="contained" 
-          color="primary"
-          disabled={!editFormData?.location || !editFormData?.time || !editFormData?.operationType || loading}
-          sx={{ ml: 1 }}
+          onClick={onDelete} 
+          color="error" 
+          startIcon={<DeleteForeverIcon />}
+          sx={{ 
+            position: 'absolute', 
+            left: 16,
+            color: isNightMode ? '#f5526b' : undefined
+          }}
         >
-          {loading ? <CircularProgress size={24} /> : 'Save'}
+          Delete
         </Button>
-      </Box>
-    </DialogActions>
-  </Dialog>
-); 
+        <Box sx={{ ml: 'auto' }}>
+          <Button 
+            onClick={onClose}
+            sx={{
+              color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : undefined
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={onSave} 
+            variant="contained" 
+            disabled={!editFormData?.location || !editFormData?.time || !editFormData?.operationType || loading}
+            sx={{ 
+              ml: 1,
+              bgcolor: isNightMode ? '#2c3e50' : 'primary.main',
+              color: isNightMode ? 'rgba(255, 255, 255, 0.9)' : undefined,
+              '&:hover': {
+                bgcolor: isNightMode ? '#34495e' : 'primary.dark'
+              }
+            }}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Save'}
+          </Button>
+        </Box>
+      </DialogActions>
+    </Dialog>
+  );
+}; 

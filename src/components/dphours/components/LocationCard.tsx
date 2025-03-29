@@ -18,6 +18,7 @@ import {
   ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
 import { DPHours, operationColors } from '../types';
+import { useTheme } from '../../../providers/ThemeProvider';
 
 interface LocationCardProps {
   location: string;
@@ -32,6 +33,7 @@ const LocationCard: React.FC<LocationCardProps> = ({
   onEdit,
   onDelete
 }) => {
+  const { isNightMode } = useTheme();
   // Состояние для отслеживания свернутости/развернутости содержимого
   const [expanded, setExpanded] = useState<boolean>(true);
 
@@ -72,8 +74,8 @@ const LocationCard: React.FC<LocationCardProps> = ({
       <Box 
         sx={{ 
           p: 1.5, 
-          bgcolor: 'primary.light', 
-          color: 'white',
+          bgcolor: isNightMode ? '#374151' : 'primary.light', 
+          color: isNightMode ? 'rgba(255, 255, 255, 0.85)' : 'white',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -95,14 +97,18 @@ const LocationCard: React.FC<LocationCardProps> = ({
           <IconButton 
             size="small"
             onClick={handleEdit}
-            sx={{ color: 'white', ml: 1, mr: 0.5 }}
+            sx={{ 
+              color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : 'white', 
+              ml: 1, 
+              mr: 0.5 
+            }}
           >
             <EditIcon fontSize="small" />
           </IconButton>
           <IconButton 
             size="small"
             onClick={handleDelete}
-            sx={{ color: 'white' }}
+            sx={{ color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : 'white' }}
           >
             <DeleteIcon fontSize="small" />
           </IconButton>

@@ -1,9 +1,24 @@
 import React from 'react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Button, Box, Container } from '@mui/material';
+import { 
+  AppBar, 
+  Toolbar, 
+  Typography, 
+  Button, 
+  Box, 
+  Container, 
+  IconButton, 
+  Tooltip 
+} from '@mui/material';
+import { 
+  Brightness4 as DarkModeIcon, 
+  Brightness7 as LightModeIcon 
+} from '@mui/icons-material';
+import { useTheme } from '../providers/ThemeProvider';
 
 const Navigation = () => {
   const location = useLocation();
+  const { isNightMode, toggleTheme } = useTheme();
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -16,7 +31,7 @@ const Navigation = () => {
           <Typography variant="h5" component="div" sx={{ flexGrow: 1, fontWeight: 500 }}>
             DP Hours Summary
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Button 
               component={RouterLink} 
               to="/bunkering"
@@ -67,8 +82,22 @@ const Navigation = () => {
                 pb: 0.5
               }}
             >
-              DP Hours
+              Operations Log
             </Button>
+            <Tooltip title={isNightMode ? "Switch to Light Mode" : "Switch to Night Mode"}>
+              <IconButton
+                color="inherit"
+                onClick={toggleTheme}
+                sx={{ 
+                  ml: 2,
+                  border: '1px solid rgba(255,255,255,0.3)', 
+                  borderRadius: '8px',
+                  p: 1
+                }}
+              >
+                {isNightMode ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Tooltip>
           </Box>
         </Toolbar>
       </Container>

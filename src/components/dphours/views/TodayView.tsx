@@ -3,6 +3,7 @@ import { Paper, Box, Typography, Button } from '@mui/material';
 import Timeline from '../Timeline';
 import { DPHours } from '../types';
 import { formatDate } from '../utils';
+import { useTheme } from '../../../providers/ThemeProvider';
 
 interface TodayViewProps {
   eventsForSelectedDate: DPHours[];
@@ -10,7 +11,7 @@ interface TodayViewProps {
   onOpenComplexAdd: () => void;
   onEdit: (id: string, updatedData: DPHours) => void;
   onEditLocation: (date: string, location: string, events: DPHours[]) => void;
-  onDeleteLocation: (id: string) => void;
+  onDeleteLocation: (id: string | DPHours[]) => void;
 }
 
 const TodayView: React.FC<TodayViewProps> = ({
@@ -21,6 +22,8 @@ const TodayView: React.FC<TodayViewProps> = ({
   onEditLocation,
   onDeleteLocation
 }) => {
+  const { isNightMode } = useTheme();
+  
   return (
     <Paper sx={{ p: 4, mb: 3, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -31,7 +34,12 @@ const TodayView: React.FC<TodayViewProps> = ({
             borderRadius: '4px',
             textTransform: 'uppercase',
             fontWeight: 500,
-            py: 1
+            py: 1,
+            bgcolor: isNightMode ? '#2c3e50' : 'primary.main',
+            color: isNightMode ? 'rgba(255, 255, 255, 0.85)' : 'white',
+            '&:hover': {
+              bgcolor: isNightMode ? '#34495e' : 'primary.dark',
+            }
           }}
         >
           ADD NEW
