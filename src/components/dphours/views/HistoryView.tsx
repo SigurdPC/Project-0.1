@@ -49,7 +49,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
     if (locationsForDate.length === 0) {
       return (
         <Typography align="center" color="text.secondary" sx={{ py: 2 }}>
-          {searchQuery ? 'Нет результатов по вашему запросу' : 'Нет данных для этой даты'}
+          {searchQuery ? 'No results for your query' : 'No records found'}
         </Typography>
       );
     }
@@ -65,9 +65,9 @@ const HistoryView: React.FC<HistoryViewProps> = ({
               events={group}
               onEdit={() => onEditLocation(date, location, group)}
               onDelete={() => {
-                if (window.confirm(`Вы уверены, что хотите удалить все операции для этой локации "${location}"?`)) {
+                if (window.confirm(`Are you sure you want to delete all operations for this location "${location}"?`)) {
                   if (group && group.length > 0) {
-                    // Фильтруем только события с ID
+                    // Filter only events with IDs
                     const eventsWithIds = group.filter(event => event && event.id);
                     
                     if (eventsWithIds.length > 0) {
@@ -97,7 +97,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
         <SearchBar
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
-          placeholder="Поиск..."
+          placeholder="Search..."
           width="250px"
         />
       </Box>
@@ -120,7 +120,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
         </Box>
       ) : (
         <Typography align="center" color="text.secondary" sx={{ py: 6, fontSize: '1.1rem' }}>
-          {searchQuery ? 'Нет результатов по вашему запросу' : 'No records found'}
+          {searchQuery ? 'No results for your query' : 'No records found'}
         </Typography>
       )}
       
@@ -135,8 +135,8 @@ const HistoryView: React.FC<HistoryViewProps> = ({
             rowsPerPage={rowsPerPage}
             onRowsPerPageChange={onRowsPerPageChange}
             rowsPerPageOptions={[5, 10, 25, 50]}
-            labelRowsPerPage="на странице:"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
+            labelRowsPerPage="per page:"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
             sx={{ 
               '& .MuiTablePagination-toolbar': { 
                 padding: '12px',

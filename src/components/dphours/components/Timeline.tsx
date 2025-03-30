@@ -3,10 +3,10 @@ import { List, ListItem, ListItemText, IconButton, Tooltip, Box, Paper, Typograp
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { formatTime } from '../../../utils/dateUtils';
 
-// Типы операций
+// Operation types
 export type OperationType = 'DP Setup' | 'Moving in' | 'Handling Offshore' | 'Pulling Out' | 'DP OFF';
 
-// Интерфейс для событий
+// Interface for events
 export interface DPHours {
   id: string;
   date: string;
@@ -23,25 +23,25 @@ interface TimelineProps {
   showDate?: boolean;
 }
 
-// Возвращает цвет для типа операции
+// Returns color for operation type
 const getOperationColor = (operationType: OperationType): string => {
   switch (operationType) {
     case 'DP Setup':
-      return '#4caf50'; // Зеленый
+      return '#4caf50'; // Green
     case 'Moving in':
-      return '#2196f3'; // Синий
+      return '#2196f3'; // Blue
     case 'Handling Offshore':
-      return '#ff9800'; // Оранжевый
+      return '#ff9800'; // Orange
     case 'Pulling Out':
-      return '#9c27b0'; // Фиолетовый
+      return '#9c27b0'; // Purple
     case 'DP OFF':
-      return '#f44336'; // Красный
+      return '#f44336'; // Red
     default:
-      return '#2196f3'; // Синий по умолчанию
+      return '#2196f3'; // Default blue
   }
 };
 
-// Группирует события по локациям
+// Groups events by location
 const groupEventsByLocation = (events: DPHours[]): Record<string, DPHours[]> => {
   const grouped: Record<string, DPHours[]> = {};
   
@@ -62,7 +62,7 @@ const Timeline: React.FC<TimelineProps> = ({
   grouped = false,
   showDate = false
 }) => {
-  // Если нет событий, показываем сообщение
+  // If no events, show message
   if (events.length === 0) {
     return (
       <Paper sx={{ p: 2, textAlign: 'center' }}>
@@ -73,7 +73,7 @@ const Timeline: React.FC<TimelineProps> = ({
     );
   }
   
-  // Если группировка включена, группируем по локациям
+  // If grouping is enabled, group by locations
   if (grouped) {
     const groupedEvents = groupEventsByLocation(events);
     
@@ -147,7 +147,7 @@ const Timeline: React.FC<TimelineProps> = ({
     );
   }
   
-  // По умолчанию показываем хронологический список
+  // By default show chronological list
   return (
     <Paper sx={{ overflow: 'hidden' }}>
       <List dense disablePadding>

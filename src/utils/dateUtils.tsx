@@ -1,5 +1,5 @@
 /**
- * Форматирует дату из ISO формата (yyyy-mm-dd) в более читаемый формат (DD/MM/YYYY)
+ * Formats a date from ISO format (yyyy-mm-dd) to a more readable format (DD/MM/YYYY)
  */
 export const formatDate = (dateStr: string): string => {
   if (!dateStr) return '';
@@ -7,7 +7,7 @@ export const formatDate = (dateStr: string): string => {
   try {
     const date = new Date(dateStr);
     
-    // Проверяем, валидная ли дата
+    // Check if the date is valid
     if (isNaN(date.getTime())) {
       return dateStr;
     }
@@ -18,18 +18,18 @@ export const formatDate = (dateStr: string): string => {
     
     return `${day}/${month}/${year}`;
   } catch (error) {
-    // В случае ошибки, возвращаем исходную строку
+    // In case of error, return the original string
     return dateStr;
   }
 };
 
 /**
- * Форматирует время в 12-часовой формат с AM/PM
+ * Formats time to 12-hour format with AM/PM
  */
 export const formatTime = (timeStr: string): string => {
   if (!timeStr) return '';
   
-  // Проверяем формат HH:MM
+  // Check HH:MM format
   const timeParts = timeStr.split(':');
   if (timeParts.length !== 2) {
     return timeStr;
@@ -40,48 +40,48 @@ export const formatTime = (timeStr: string): string => {
   const suffix = hours >= 12 ? 'PM' : 'AM';
   
   hours = hours % 12;
-  hours = hours ? hours : 12; // 0 должен быть 12 в 12-часовом формате
+  hours = hours ? hours : 12; // 0 should be 12 in 12-hour format
   
   return `${hours}:${minutes} ${suffix}`;
 };
 
 /**
- * Получает текущую дату в формате строки ISO (YYYY-MM-DD)
+ * Gets the current date as an ISO string (YYYY-MM-DD)
  */
 export const getCurrentDate = (): string => {
   return new Date().toISOString().split('T')[0];
 };
 
 /**
- * Преобразует дату из разных форматов в ISO формат (YYYY-MM-DD)
+ * Converts a date from various formats to ISO format (YYYY-MM-DD)
  */
 export const parseUserDateInput = (dateStr: string): string => {
   if (!dateStr) return '';
   
-  // Если уже в формате ISO, возвращаем как есть
+  // If already in ISO format, return as is
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return dateStr;
   }
   
-  // Проверяем формат ДД.ММ.ГГГГ
+  // Check DD.MM.YYYY format
   const ddmmyyyy = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(dateStr);
   if (ddmmyyyy) {
     const [_, day, month, year] = ddmmyyyy;
     return `${year}-${month}-${day}`;
   }
   
-  // Проверяем другие распространенные форматы
+  // Check other common formats
   const date = new Date(dateStr);
   if (!isNaN(date.getTime())) {
     return date.toISOString().split('T')[0];
   }
   
-  // Если не удалось распознать, возвращаем исходную строку
+  // If format not recognized, return original string
   return dateStr;
 };
 
 /**
- * Сравнивает две даты, возвращает true, если они одинаковые
+ * Compares two dates, returns true if they are the same
  */
 export const compareDates = (date1: string, date2: string): boolean => {
   if (!date1 || !date2) return false;
@@ -93,7 +93,7 @@ export const compareDates = (date1: string, date2: string): boolean => {
 };
 
 /**
- * Проверяет, является ли дата сегодняшней
+ * Checks if a date is today
  */
 export const isToday = (dateStr: string): boolean => {
   const today = getCurrentDate();
@@ -101,7 +101,7 @@ export const isToday = (dateStr: string): boolean => {
 };
 
 /**
- * Добавляет указанное количество дней к дате
+ * Adds the specified number of days to a date
  */
 export const addDays = (dateStr: string, days: number): string => {
   const date = new Date(dateStr);
@@ -110,7 +110,7 @@ export const addDays = (dateStr: string, days: number): string => {
 };
 
 /**
- * Форматирует дату в человекочитаемый вид с учетом сегодняшней даты
+ * Formats a date in a human-readable way based on the current date
  */
 export const formatDateRelative = (dateStr: string): string => {
   if (isToday(dateStr)) {

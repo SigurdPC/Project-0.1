@@ -29,13 +29,13 @@ import {
   getDPTimeOperations
 } from '../components/dphours/utils';
 
-// Импорт компонентов
+// Import components
 import TodayView from '../components/dphours/views/TodayView';
 import HistoryView from '../components/dphours/views/HistoryView';
 import DPTimeSettings from '../components/dphours/views/DPTimeSettings';
 import DPTimeResults from '../components/dphours/views/DPTimeResults';
 
-// Импорт хуков
+// Import hooks
 import { useDataManagement } from '../components/dphours/hooks/useDataManagement';
 import { useEventFilters } from '../components/dphours/hooks/useEventFilters';
 import { useEventGroups } from '../components/dphours/hooks/useEventGroups';
@@ -55,10 +55,10 @@ interface DateRange {
 }
 
 const DPHoursPage = () => {
-  // Получаем состояние ночного режима
+  // Get night mode state
   const { isNightMode } = useTheme();
   
-  // Хуки управления данными и состоянием
+  // Data management and state hooks
   const { 
     data, loading, error, snackbar, showSnackbar, handleSnackbarClose,
     fetchData, addEvent, updateEvent, deleteEvent, deleteMultipleEvents,
@@ -77,28 +77,28 @@ const DPHoursPage = () => {
     getFilteredLocationsForDate
   } = useEventGroups();
 
-  // Состояние вкладок и UI
+  // Tabs and UI state
   const [tabValue, setTabValue] = useState<number>(0);
   const [selectedDate] = useState<string>(
     new Date().toISOString().split('T')[0] // current date by default
   );
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   
-  // Пагинация для истории
+  // History pagination
   const [historyPage, setHistoryPage] = useState(1);
   const [historyRowsPerPage, setHistoryRowsPerPage] = useState(10);
   
-  // Состояние диалогов
+  // Dialog states
   const [isLocationEditDialogOpen, setIsLocationEditDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   
-  // Состояние форм
+  // Form states
   const [complexAdd, setComplexAdd] = useState<ComplexAddState | null>(null);
   const [locationEditData, setLocationEditData] = useState<LocationEditData | null>(null);
   const [editFormData, setEditFormData] = useState<DPHours | null>(null);
   const [records, setRecords] = useState<DPHours[]>([]);
   
-  // Состояние фильтров
+  // Filter states
   const [filters, setFilters] = useState<Filters>({
     startDate: new Date().toISOString().split('T')[0], // current date by default
     endDate: new Date().toISOString().split('T')[0],
@@ -106,7 +106,7 @@ const DPHoursPage = () => {
     operationType: ''
   });
 
-  // DP Time состояние
+  // DP Time state
   const [dpTimeResults, setDpTimeResults] = useState<TimeCalculationResult[]>([]);
   const [dpTimeOperations, setDpTimeOperations] = useState<DPTimeOperation[]>([]);
   const [dpTimeResultsCalculated, setDpTimeResultsCalculated] = useState<boolean>(false);
@@ -123,7 +123,7 @@ const DPHoursPage = () => {
     ]
   });
 
-  // Преобразуем данные в операции для DP Time при их изменении
+  // Convert data to DP Time operations when they change
   useEffect(() => {
     if (data) {
       const operations = getDPTimeOperations(data);
@@ -131,7 +131,7 @@ const DPHoursPage = () => {
     }
   }, [data]);
 
-  // Мемоизированные данные
+  // Memoized data
   const eventsForSelectedDate = useMemo(() => {
     if (!data) return [];
     return data.filter(event => event.date === selectedDate);
@@ -145,14 +145,14 @@ const DPHoursPage = () => {
     return getPaginatedItems(filteredDatesWithEvents, historyPage, historyRowsPerPage);
   }, [filteredDatesWithEvents, historyPage, historyRowsPerPage, getPaginatedItems]);
 
-  // Обработчики взаимодействий с интерфейсом
+  // UI interaction handlers
   
-  // Переключение вкладок
+  // Tab switching
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
   
-  // Переключение развернутого раздела истории
+  // Toggle expanded history section
   const toggleDateExpansion = (date: string) => {
     if (expandedDate === date) {
       setExpandedDate(null);
@@ -161,14 +161,14 @@ const DPHoursPage = () => {
     }
   };
 
-  // Обработчик поиска
+  // Search handler
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
-    // Сбрасываем на первую страницу при изменении поиска
+    // Reset to the first page when search changes
     setHistoryPage(1);
   };
   
-  // Обработчики пагинации
+  // Pagination handlers
   const handleHistoryPageChange = (_: unknown, newPage: number) => {
     setHistoryPage(newPage + 1);
   };
@@ -178,9 +178,9 @@ const DPHoursPage = () => {
     setHistoryPage(1);
   };
   
-  // Функции для работы с операциями DP
+  // Functions for working with DP operations
 
-  // Открытие диалога комплексного добавления
+  // Open complex add dialog
   const handleOpenComplexAdd = () => {
     setComplexAdd({
       open: true,
@@ -194,12 +194,12 @@ const DPHoursPage = () => {
     });
   };
   
-  // Закрытие диалога комплексного добавления
+  // Close complex add dialog
   const handleCloseComplexAdd = () => {
     setComplexAdd(null);
   };
   
-  // Изменение даты или локации в комплексном добавлении
+  // Change date or location in complex add
   const handleComplexAddBaseChange = (field: 'date' | 'location', value: string) => {
     if (field === 'date') {
       value = parseUserDateInput(value);
@@ -213,7 +213,7 @@ const DPHoursPage = () => {
     }
   };
   
-  // Добавление новой операции в комплексном добавлении
+  // Add new operation to complex add
   const handleAddOperation = () => {
     if (complexAdd) {
     setComplexAdd({
@@ -230,7 +230,7 @@ const DPHoursPage = () => {
     }
   };
   
-  // Изменение операции в комплексном добавлении
+  // Change operation in complex add
   const handleOperationChange = (id: string, field: 'time' | 'operationType', value: string) => {
     if (complexAdd) {
     setComplexAdd({
@@ -242,9 +242,9 @@ const DPHoursPage = () => {
     }
   };
   
-  // Удаление операции в комплексном добавлении
+  // Remove operation from complex add
   const handleRemoveOperation = (id: string) => {
-    // Не удаляем, если осталась только одна операция
+    // Don't remove if only one operation left
     if (complexAdd && complexAdd.operations.length <= 1) return;
     
     if (complexAdd) {
@@ -255,21 +255,21 @@ const DPHoursPage = () => {
     }
   };
   
-  // Сохранение всех операций из комплексного добавления
+  // Save all operations from complex add
   const handleSaveComplexAdd = async () => {
-    // Проверка заполнения всех полей
+    // Check for all fields filled
     if (!complexAdd || !complexAdd.date || !complexAdd.location) {
-      showSnackbar('Пожалуйста, введите дату и локацию', 'warning');
+      showSnackbar('Please enter date and location', 'warning');
       return;
     }
     
-    // Проверка, что все операции имеют время
+    // Check that all operations have time
     if (complexAdd.operations.some(op => !op.time)) {
-      showSnackbar('Пожалуйста, введите время для всех операций', 'warning');
+      showSnackbar('Please enter time for all operations', 'warning');
       return;
     }
     
-    // Используем операции в исходном порядке без сортировки
+    // Use operations in original order without sorting
     const operations = complexAdd.operations;
     
     try {
@@ -284,14 +284,14 @@ const DPHoursPage = () => {
       
       setComplexAdd(null);
       
-      showSnackbar(`Добавлено ${operations.length} событий`, 'success');
+      showSnackbar(`Added ${operations.length} events`, 'success');
     } catch (err) {
       console.error('Failed to add events:', err);
-      showSnackbar('Не удалось добавить события', 'error');
+      showSnackbar('Failed to add events', 'error');
     }
   };
 
-  // История: обработчик редактирования локации
+  // History: handler for editing location
   const handleEditLocation = (date: string, location: string, events: DPHours[]) => {
     setIsLocationEditDialogOpen(true);
     setLocationEditData({
@@ -302,13 +302,13 @@ const DPHoursPage = () => {
     });
   };
   
-  // История: отмена редактирования локации
+  // History: cancel editing location
   const handleCancelLocationEdit = () => {
     setIsLocationEditDialogOpen(false);
     setLocationEditData(null);
   };
   
-  // История: изменение названия локации
+  // History: change location name
   const handleLocationNameChange = (value: string) => {
     if (locationEditData) {
       setLocationEditData({
@@ -318,13 +318,13 @@ const DPHoursPage = () => {
     }
   };
 
-  // История: изменение даты для всех операций
+  // History: change date for all operations
   const handleLocationDateChange = (value: string) => {
     if (locationEditData) {
-      // Конвертируем дату в правильный формат
+      // Convert date to correct format
       const formattedDate = parseUserDateInput(value);
       
-      // Создаем копию событий с обновленной датой
+      // Create copy of events with updated date
       const updatedEvents = locationEditData.events.map(event => ({
         ...event,
         date: formattedDate
@@ -338,7 +338,7 @@ const DPHoursPage = () => {
     }
   };
 
-  // История: изменение данных операции в диалоге редактирования локации
+  // History: change operation data in edit location dialog
   const handleLocationOperationChange = (index: number, field: keyof DPHours, value: any) => {
     if (locationEditData) {
       const updatedEvents = [...locationEditData.events];
@@ -353,10 +353,10 @@ const DPHoursPage = () => {
     }
   };
 
-  // История: добавление новой операции в локацию
+  // History: add new operation to location
   const handleAddLocationOperation = () => {
     if (locationEditData) {
-      // Создаем новую операцию с временным id и проверяем, что все поля инициализированы
+      // Create new operation with temporary id and check that all fields are initialized
       const newOperation: DPHours = {
         id: `temp-${Date.now()}`,
         date: locationEditData.date,
@@ -365,7 +365,7 @@ const DPHoursPage = () => {
         operationType: 'DP Setup'
       };
       
-      // Добавляем новую операцию к существующим в конец списка
+      // Add new operation to existing list at the end
       setLocationEditData({
         ...locationEditData,
         events: [...locationEditData.events, newOperation]
@@ -373,20 +373,20 @@ const DPHoursPage = () => {
     }
   };
 
-  // Удаление группы событий по одной локации
+  // Delete group of events by one location
   const handleDeleteLocationEvents = (events: DPHours[]) => {
     if (!events || events.length === 0) {
       console.error('handleDeleteLocationEvents: No events provided');
-      showSnackbar('Failed to delete: No events provided', 'error');
+      showSnackbar('Failed to delete: empty events array', 'error');
       return;
     }
     
     console.log(`Attempting to delete ${events.length} events`);
     
-    // Извлекаем все валидные ID из массива событий
+    // Extract all valid IDs from events array
     const idsToDelete = events
-      .filter(event => event && event.id) // Убедимся, что у события есть ID
-      .map(event => String(event.id));    // Преобразуем все ID в строки
+      .filter(event => event && event.id) // Ensure event has ID
+      .map(event => String(event.id));    // Convert all IDs to strings
     
     if (idsToDelete.length === 0) {
       console.error('No valid IDs found for deletion');
@@ -396,13 +396,13 @@ const DPHoursPage = () => {
 
     console.log(`Deleting ${idsToDelete.length} events with IDs:`, idsToDelete);
     
-    // Вызываем функцию удаления нескольких записей
+    // Call multiple records deletion function
     deleteMultipleEvents(idsToDelete)
       .then(() => {
         console.log('Successfully deleted events:', idsToDelete.length);
         showSnackbar(`Successfully deleted ${idsToDelete.length} events.`, 'success');
         
-        // Обновляем данные
+        // Update data
         fetchData();
       })
       .catch(error => {
@@ -411,7 +411,7 @@ const DPHoursPage = () => {
       });
   };
 
-  // Обработчик сохранения изменений отдельной записи
+  // Handler for saving changes to single record
   const handleSaveEdit = async () => {
     if (!editFormData?.id) return;
     
@@ -431,12 +431,12 @@ const DPHoursPage = () => {
     }
   };
   
-  // Обработчик сохранения локации (группы событий)
+  // Handler for saving location (group of events)
   const handleSaveLocation = async () => {
     if (!locationEditData) return;
     
     try {
-      // Используем события в том порядке, в каком они представлены в интерфейсе
+      // Use events in the order they are presented in the interface
       const events = locationEditData.events;
       
       for (const event of events) {
@@ -459,30 +459,30 @@ const DPHoursPage = () => {
       
       setIsLocationEditDialogOpen(false);
       setLocationEditData(null);
-      showSnackbar('Записи успешно обновлены', 'success');
+      showSnackbar('Records updated successfully', 'success');
       
-      // Обновляем данные с сервера для синхронизации
+      // Update data from server for synchronization
       await fetchData();
     } catch (error) {
       console.error('Failed to update location:', error);
-      showSnackbar('Не удалось обновить записи', 'error');
+      showSnackbar('Failed to update records', 'error');
     }
   };
 
-  // Обработчик удаления отдельной записи
+  // Handler for deleting single record
   const handleDeleteOperation = async (id: string) => {
-    if (!window.confirm('Вы уверены, что хотите удалить эту операцию?')) {
+    if (!window.confirm('Are you sure you want to delete this operation?')) {
       return;
     }
     
     setLoading(true);
     try {
-      // Преобразуем ID в строку для надежности
+      // Convert ID to string for safety
       const operationId = String(id);
       
-      // Проверяем, не временный ли это ID
+      // Check if this is a temporary ID
       if (operationId.startsWith('temp-')) {
-        // Для временных ID обновляем только состояние без запроса к API
+        // For temporary IDs, update only state without API request
         setData((prev: DPHours[]) => prev.filter((item: DPHours) => String(item.id) !== operationId));
         setIsEditDialogOpen(false);
         setEditFormData(null);
@@ -494,19 +494,19 @@ const DPHoursPage = () => {
       const success = await deleteEvent(operationId);
       
       if (success) {
-        // Если открыт диалог редактирования, закрываем его
+        // If edit dialog is open, close it
         if (editFormData?.id === operationId) {
           setIsEditDialogOpen(false);
           setEditFormData(null);
         }
-        // Обновляем список операций в диалоге редактирования локации, если он открыт
+        // Update operations list in edit location dialog if open
         if (locationEditData && locationEditData.events.some(event => String(event.id) === operationId)) {
           if (locationEditData.events.length <= 1) {
-            // Если это последняя операция в локации, закрываем диалог
+            // If this is the last operation in location, close dialog
             setIsLocationEditDialogOpen(false);
             setLocationEditData(null);
           } else {
-            // Иначе обновляем список операций
+            // Otherwise, update operations list
             setLocationEditData({
               ...locationEditData,
               events: locationEditData.events.filter(event => String(event.id) !== operationId)
@@ -514,7 +514,7 @@ const DPHoursPage = () => {
           }
         }
         
-        // Обновляем данные после удаления
+        // Update data after deletion
         await fetchData();
         showSnackbar('Operation deleted successfully', 'success');
       } else {
@@ -528,10 +528,10 @@ const DPHoursPage = () => {
     }
   };
   
-  // Обработчик изменения данных в форме редактирования
+  // Handler for changing data in edit form
   const handleFormChange = (field: keyof DPHours, value: any) => {
     if (editFormData) {
-      // Если это поле даты и пользователь ввел в формате dd/mm/yyyy
+      // If this is date field and user entered in dd/mm/yyyy format
       if (field === 'date') {
         value = parseUserDateInput(value);
       }
@@ -543,29 +543,29 @@ const DPHoursPage = () => {
     }
   };
   
-  // Обработчик удаления группы локаций для вкладки Today
+  // Handler for deleting group of locations for Today tab
   const handleDeleteLocationAdapter = (idOrEvents: string | DPHours[]) => {
     console.log('handleDeleteLocationAdapter called with:', typeof idOrEvents, idOrEvents);
     
-    // Проверяем, является ли параметр массивом событий
+    // Check if parameter is events array
     if (Array.isArray(idOrEvents)) {
-      // Если нам передали массив событий, напрямую вызываем функцию удаления
+      // If we passed events array, directly call deletion function
       if (idOrEvents.length > 0) {
         console.log('Direct deletion of events array', idOrEvents.length, 'events');
         
-        // Подтверждаем удаление
-        const location = idOrEvents[0]?.location || 'выбранной локации';
-        if (window.confirm(`Вы уверены, что хотите удалить все операции для локации "${location}"?`)) {
+        // Confirm deletion
+        const location = idOrEvents[0]?.location || 'selected location';
+        if (window.confirm(`Are you sure you want to delete all operations for location "${location}"?`)) {
           handleDeleteLocationEvents(idOrEvents);
         }
       } else {
         console.error('Cannot delete: Empty events array');
-        showSnackbar('Не удалось удалить: пустой массив событий', 'error');
+        showSnackbar('Failed to delete: empty events array', 'error');
       }
       return;
     }
     
-    // Если параметр - строка ID, находим связанные события
+    // If parameter is string ID, find related events
     const id = idOrEvents;
     if (!id) {
       console.error('handleDeleteLocationAdapter: No ID provided');
@@ -575,7 +575,7 @@ const DPHoursPage = () => {
     
     console.log('Deletion by ID:', id);
     
-    // Находим событие по ID
+    // Find event by ID
     const targetEvent = data.find(item => String(item.id) === String(id));
     if (!targetEvent) {
       console.error('Event not found for deletion:', id);
@@ -583,7 +583,7 @@ const DPHoursPage = () => {
       return;
     }
     
-    // Получаем все события для этой даты и локации
+    // Get all events for this date and location
     const dateEvents = data.filter(item => 
       item.date === targetEvent.date && 
       item.location === targetEvent.location
@@ -601,16 +601,16 @@ const DPHoursPage = () => {
     
     console.log(`Found ${dateEvents.length} events to delete for location "${targetEvent.location}"`);
       
-      // Подтверждение удаления
-    if (window.confirm(`Вы уверены, что хотите удалить все операции для локации "${targetEvent.location}"?`)) {
-      // Проверяем, что у всех событий есть ID
+      // Confirm deletion
+    if (window.confirm(`Are you sure you want to delete all operations for location "${targetEvent.location}"?`)) {
+      // Check that all events have ID
       const eventsWithIds = dateEvents.filter(event => event.id);
       if (eventsWithIds.length !== dateEvents.length) {
         console.warn(`Some events (${dateEvents.length - eventsWithIds.length}) don't have IDs`);
       }
       
       if (eventsWithIds.length > 0) {
-        // Передаем только события с ID для удаления
+        // Pass only events with ID for deletion
         handleDeleteLocationEvents(eventsWithIds);
       } else {
         console.error('No events with IDs to delete');
@@ -619,26 +619,26 @@ const DPHoursPage = () => {
     }
   };
 
-  // Функции для передачи в дочерние компоненты
+  // Functions for passing to child components
   
-  // Функция для получения отфильтрованных локаций для даты
+  // Function for getting filtered locations for date
   const getFilteredLocationsHandler = (date: string) => {
     const groupedEvents = getGroupedEventsForDate(date, data);
     return getFilteredLocationsForDate(date, searchQuery, data, groupedEvents);
   };
 
-  // Функция для получения группированных событий для даты
+  // Function for getting grouped events for date
   const getGroupedEventsHandler = (date: string) => {
     return getGroupedEventsForDate(date, data);
   };
 
-  // Обработчик изменения даты
+  // Handler for changing date
   const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
     value = parseUserDateInput(value);
     setFilters((prev: Filters) => ({ ...prev, [field]: value }));
   };
 
-  // Обработчик добавления записи
+  // Handler for adding record
   const handleAddRecord = () => {
     const newRecord: DPHours = {
       id: Date.now().toString(),
@@ -650,7 +650,7 @@ const DPHoursPage = () => {
     setRecords((prev: DPHours[]) => [...prev, newRecord]);
   };
 
-  // Обработчик изменения значения в таблице
+  // Handler for changing value in table
   const handleCellChange = (id: string, field: keyof DPHours, value: any) => {
     if (field === 'date') {
       value = parseUserDateInput(value);
@@ -662,7 +662,7 @@ const DPHoursPage = () => {
     );
   };
 
-  // Обработчики для DP Time
+  // DP Time handlers
   const handleDpTimeStartDateChange = (date: string) => {
     setDpTimeSettings((prev: DateRange) => ({ ...prev, startDate: date }));
   };
@@ -830,7 +830,7 @@ const DPHoursPage = () => {
             />
                 </Paper>
           
-          {/* Results block - отображается только после выполнения расчета */}
+          {/* Results block - displayed only after calculation */}
           {dpTimeResultsCalculated && (
             <Paper sx={{ 
               p: 4, 

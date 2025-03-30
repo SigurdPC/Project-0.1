@@ -12,7 +12,7 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({
   searchQuery,
   onSearchChange,
-  placeholder = 'Поиск...',
+  placeholder = 'Search...',
   width = '250px'
 }) => {
   const theme = useTheme();

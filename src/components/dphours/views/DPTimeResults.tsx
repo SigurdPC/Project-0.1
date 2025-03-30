@@ -20,7 +20,7 @@ interface DPTimeResultsProps {
 const formatHoursAndMinutes = (minutes: number): string => {
   if (minutes < 0) return '0h 0m';
   
-  // Округление близких к часу значений
+  // Rounding values close to full hour
   if (minutes % 60 >= 58) {
     minutes = Math.ceil(minutes / 60) * 60;
   }
@@ -87,7 +87,7 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
     const dateGroups: Record<string, DateGroup> = {};
     const multiDayOperations: Record<string, OperationGroup> = {};
     
-    // Даты, для которых рассчитаны результаты (для определения соседних дат)
+    // Dates for which results are calculated (used to determine adjacent dates)
     const datesWithResults = new Set<string>();
     results.forEach(result => datesWithResults.add(result.date));
     const datesArray = Array.from(datesWithResults).sort();
@@ -105,10 +105,10 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       }
     });
     
-    // Для отслеживания и предотвращения дублирования
+    // For tracking and preventing duplication
     const processedResultKeys = new Set<string>();
     
-    // Соберем все минуты по каждой дате для каждой операции
+    // Collect all minutes for each date for each operation
     const operationMinutesByDate: Record<string, Record<string, number>> = {};
     
     // Process all results
@@ -118,14 +118,14 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       
       if (!operation) return;
       
-      // Создаем уникальный ключ для этого результата
+      // Create a unique key for this result
       const resultKey = `${operationId}-${date}-${shiftId}`;
       
-      // Если результат уже обработан, пропускаем
+      // If result already processed, skip it
       if (processedResultKeys.has(resultKey)) return;
       processedResultKeys.add(resultKey);
       
-      // Отслеживаем минуты по операциям и датам
+      // Track minutes by operations and dates
       if (!operationMinutesByDate[date]) {
         operationMinutesByDate[date] = {};
       }
@@ -187,7 +187,7 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       }
     });
     
-    // Проверим операции по дням, чтобы правильно рассчитать непрерывные операции
+    // Check operations by days to properly calculate continuous operations
     for (let i = 0; i < datesArray.length; i++) {
       const currentDate = datesArray[i];
       const currentDateOps = operationMinutesByDate[currentDate] || {};
@@ -196,17 +196,17 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
         const prevDate = datesArray[i-1];
         const prevDateOps = operationMinutesByDate[prevDate] || {};
         
-        // Проверяем каждую операцию, которая есть и в предыдущий и в текущий день
+        // Check each operation that exists in both the previous and current day
         Object.keys(currentDateOps).forEach(opId => {
           if (prevDateOps[opId] && currentDateOps[opId]) {
-            // Если операция есть в предыдущий день и не является многодневной
+            // If operation exists on previous day and is not multi-day
             if (!multiDayOperations[opId]) {
-              // Проверяем операцию
+              // Check the operation
               const operation = operations.find(op => op.id === opId);
               if (operation) {
-                // Если операция длится более одного дня, но не отмечена как многодневная
+                // If operation lasts more than one day but not marked as multi-day
                 if (operation.startDate !== operation.endDate) {
-                  // Создаем группу для многодневной операции
+                  // Create a group for multi-day operation
                   multiDayOperations[opId] = {
                     operationId: opId,
                     startDate: operation.startDate,
@@ -215,10 +215,10 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
                     totalMinutes: 0
                   };
                   
-                  // Копируем информацию о сменах из групп по датам
+                  // Copy information from date groups to multi-day operations
                   [prevDate, currentDate].forEach(date => {
                     if (dateGroups[date]) {
-                      // Добавляем смены
+                      // Add shifts
                       dateGroups[date].shifts.forEach(shift => {
                         const shiftExists = multiDayOperations[opId].shifts.some(
                           s => s.shiftId === shift.shiftId && s.shiftStart === shift.shiftStart && s.shiftEnd === shift.shiftEnd
@@ -229,10 +229,10 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
                         }
                       });
                       
-                      // Суммируем минуты
+                      // Sum minutes
                       multiDayOperations[opId].totalMinutes += operationMinutesByDate[date][opId] || 0;
                       
-                      // Удаляем операцию из группы по дате
+                      // Remove operation from date group
                       dateGroups[date].operations = dateGroups[date].operations.filter(id => id !== opId);
                       dateGroups[date].totalMinutes -= operationMinutesByDate[date][opId] || 0;
                     }
@@ -245,14 +245,14 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       }
     }
     
-    // Фильтруем группы с нулевым временем
+    // Filter groups with zero time
     const multiDayArray = Object.values(multiDayOperations)
       .filter(op => op.totalMinutes > 0);
     
     const dateArray = Object.values(dateGroups)
       .filter(group => group.totalMinutes > 0 && group.operations.length > 0);
     
-    // Объединяем и сортируем финальный результат
+    // Combine and sort final result
     const combined = [
       ...multiDayArray,
       ...dateArray.map(group => ({

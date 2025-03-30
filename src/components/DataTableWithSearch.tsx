@@ -227,7 +227,7 @@ const DataTableWithSearch = ({ columns, data, onAdd, onEdit, onDelete, title }: 
         </Typography>
         
         <TextField
-          placeholder="Поиск..."
+          placeholder="Search..."
           value={searchQuery}
           onChange={handleSearchChange}
           size="small"
@@ -324,7 +324,7 @@ const DataTableWithSearch = ({ columns, data, onAdd, onEdit, onDelete, title }: 
             {paginatedData.length === 0 && (
               <TableRow>
                 <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 3 }}>
-                  {searchQuery ? 'Нет результатов по вашему запросу' : 'Нет данных'}
+                  {searchQuery ? 'No results for your query' : 'No data'}
                 </TableCell>
               </TableRow>
             )}
@@ -341,8 +341,8 @@ const DataTableWithSearch = ({ columns, data, onAdd, onEdit, onDelete, title }: 
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="на странице:"
-          labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
+          labelRowsPerPage="per page:"
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
         />
       </Box>
 

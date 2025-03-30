@@ -196,7 +196,7 @@ const SimpleDataTable = ({ columns, data, onAdd, onEdit, onDelete }: SimpleDataT
             {data.length === 0 && (
               <TableRow>
                 <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 3 }}>
-                  Нет данных
+                  No data
                 </TableCell>
               </TableRow>
             )}

@@ -238,7 +238,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
         </Button>
         
         <TextField
-          placeholder="Поиск..."
+          placeholder="Search..."
           value={searchQuery}
           onChange={handleSearchChange}
           size="small"

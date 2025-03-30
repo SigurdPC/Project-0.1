@@ -110,7 +110,7 @@ export const DPTimePage = () => {
     if (!data) {
       setSnackbar({
         open: true,
-        message: 'Нет данных для расчета',
+        message: 'No data available for calculation',
         severity: 'warning'
       });
       return;
@@ -129,13 +129,13 @@ export const DPTimePage = () => {
     if (results.length > 0) {
       setSnackbar({
         open: true,
-        message: 'Расчет успешно выполнен',
+        message: 'Calculation completed successfully',
         severity: 'success'
       });
     } else {
       setSnackbar({
         open: true,
-        message: 'Нет результатов для отображения',
+        message: 'No results to display',
         severity: 'warning'
       });
     }
@@ -250,7 +250,7 @@ export const DPTimePage = () => {
           <Box sx={maritimeStyles.wavesDecoration} />
         </Paper>
         
-        {/* Блок результатов - отображается только если были рассчитаны результаты */}
+        {/* Results block - displayed only after calculation */}
         {resultsCalculated && (
           <Paper sx={{ 
             ...maritimeStyles.paper, 
@@ -271,13 +271,13 @@ export const DPTimePage = () => {
             <DPTimeResults 
               results={results}
               operations={operations}
-              onBack={() => {}} // Пустая функция, так как мы не используем навигацию назад
+              onBack={() => {}} // Empty function as we don't use back navigation
             />
             <Box sx={maritimeStyles.wavesDecoration} />
           </Paper>
         )}
 
-        {/* Snackbar для уведомлений */}
+        {/* Snackbar for notifications */}
         <Snackbar
           open={snackbar.open}
           autoHideDuration={6000}
