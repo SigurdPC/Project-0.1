@@ -29,7 +29,7 @@ const Navigation = () => {
       <Container>
         <Toolbar>
           <Typography variant="h5" component="div" sx={{ flexGrow: 1, fontWeight: 500 }}>
-            DP Hours Summary
+            Operation Log
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Button 
@@ -82,7 +82,7 @@ const Navigation = () => {
                 pb: 0.5
               }}
             >
-              Operations Log
+              DP Hours
             </Button>
             <Tooltip title={isNightMode ? "Switch to Light Mode" : "Switch to Night Mode"}>
               <IconButton
