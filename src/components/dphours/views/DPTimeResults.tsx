@@ -20,6 +20,11 @@ interface DPTimeResultsProps {
 const formatHoursAndMinutes = (minutes: number): string => {
   if (minutes < 0) return '0h 0m';
   
+  // Округление близких к часу значений
+  if (minutes % 60 >= 58) {
+    minutes = Math.ceil(minutes / 60) * 60;
+  }
+  
   // Calculate days, hours, and minutes
   const days = Math.floor(minutes / (60 * 24));
   const hours = Math.floor((minutes % (60 * 24)) / 60);

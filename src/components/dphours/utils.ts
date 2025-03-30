@@ -69,8 +69,22 @@ const isTimeInRange = (
 export const formatDuration = (minutes: number): string => {
   if (minutes === 0) return "In progress";
   
+  // Проверка на граничные значения округления
+  // Если минуты почти равны полному часу (59 или 58 минут), округляем до часа
+  if (minutes % 60 >= 58) {
+    minutes = Math.ceil(minutes / 60) * 60;
+  }
+  
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
+  
+  // Если есть полные дни
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return `${days}d ${remainingHours}h ${mins}m`;
+  }
+  
   return `${hours}h ${mins}m`;
 };
 
@@ -533,6 +547,40 @@ const calculateTimeInShift = (
 };
 
 /**
+ * Добавим новую функцию для округления времени в расчетах
+ */
+export const roundTimeCalculationResults = (results: TimeCalculationResult[]): TimeCalculationResult[] => {
+  // Группируем результаты по датам для анализа
+  const resultsByDate = new Map<string, TimeCalculationResult[]>();
+  
+  // Сначала сгруппируем все результаты по датам
+  results.forEach(result => {
+    if (!resultsByDate.has(result.date)) {
+      resultsByDate.set(result.date, []);
+    }
+    resultsByDate.get(result.date)!.push(result);
+  });
+  
+  // Проверяем наличие полных дней (когда используется период от 00:00 до 23:59)
+  const correctedResults = results.map(result => {
+    // Копируем результат для безопасного изменения
+    const correctedResult = { ...result };
+    
+    // Проверяем конечное время - если 23:59, то это полный день
+    if (result.endTime === '23:59') {
+      // Добавляем 1 минуту к общему времени
+      correctedResult.minutesInShift += 1;
+      // Корректируем часы, если нужно
+      correctedResult.hoursInShift = Math.round((correctedResult.minutesInShift / 60) * 100) / 100;
+    }
+    
+    return correctedResult;
+  });
+  
+  return correctedResults;
+};
+
+/**
  * Расчет времени операций по сменам
  */
 export const calculateOperationTimesByShifts = (
@@ -541,7 +589,7 @@ export const calculateOperationTimesByShifts = (
   endDate: string, 
   shifts: Shift[]
 ): TimeCalculationResult[] => {
-  const results: TimeCalculationResult[] = [];
+  let results: TimeCalculationResult[] = [];
   const datesInRange = getDatesInRange(startDate, endDate);
 
   // Для каждой операции
@@ -601,5 +649,8 @@ export const calculateOperationTimesByShifts = (
     });
   });
 
+  // Применяем коррекцию для округления времени
+  results = roundTimeCalculationResults(results);
+  
   return results;
 }; 
