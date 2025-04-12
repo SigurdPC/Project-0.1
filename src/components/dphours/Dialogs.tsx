@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Button, Grid, FormControl, InputLabel,
@@ -21,7 +21,7 @@ interface ComplexAddDialogProps {
   loading: boolean;
   complexAdd: ComplexAddState;
   onClose: () => void;
-  onSave: () => void;
+  onSave: () => Promise<boolean>;
   onBaseChange: (field: 'date' | 'location', value: string) => void;
   onAddOperation: () => void;
   onOperationChange: (id: string, field: 'time' | 'operationType', value: string) => void;
@@ -34,7 +34,7 @@ interface EditLocationDialogProps {
   loading: boolean;
   locationEditData: LocationEditData | null;
   onClose: () => void;
-  onSave: () => void;
+  onSave: () => Promise<boolean>;
   onLocationDateChange: (value: string) => void;
   onLocationNameChange: (value: string) => void;
   onLocationOperationChange: (index: number, field: keyof DPHours, value: any) => void;
@@ -48,7 +48,7 @@ interface EditOperationDialogProps {
   loading: boolean;
   editFormData: DPHours | null;
   onClose: () => void;
-  onSave: () => void;
+  onSave: () => Promise<boolean>;
   onFormChange: (field: keyof DPHours, value: any) => void;
   onDelete: () => void;
 }
@@ -66,9 +66,23 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
   onRemoveOperation
 }) => {
   const { isNightMode } = useTheme();
+  const [isSaving, setIsSaving] = useState(false);
   
   // Используем операции в исходном порядке без сортировки
   const operations = complexAdd.operations;
+
+  // Обработчик сохранения с обработкой ответа
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const success = await onSave();
+      // Если успешно, диалог закроется внутри onSave
+      setIsSaving(false);
+    } catch (error) {
+      console.error('Error in handleSave:', error);
+      setIsSaving(false);
+    }
+  };
 
   return (
     <Dialog 
@@ -203,6 +217,7 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
       <DialogActions>
         <Button 
           onClick={onClose}
+          disabled={isSaving || loading}
           sx={{
             color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : undefined
           }}
@@ -210,9 +225,9 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
           Cancel
         </Button>
         <Button 
-          onClick={onSave} 
+          onClick={handleSave}
           variant="contained" 
-          disabled={loading || !complexAdd.date || !complexAdd.location || complexAdd.operations.some(op => !op.time)}
+          disabled={isSaving || loading || !complexAdd.date || !complexAdd.location || complexAdd.operations.some(op => !op.time)}
           sx={{
             bgcolor: isNightMode ? '#2c3e50' : 'primary.main',
             color: isNightMode ? 'rgba(255, 255, 255, 0.9)' : undefined,
@@ -221,7 +236,7 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
             }
           }}
         >
-          {loading ? <CircularProgress size={24} /> : 'Save All'}
+          {isSaving || loading ? <CircularProgress size={24} /> : 'Save All'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -242,15 +257,61 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
   onAddOperation
 }) => {
   const { isNightMode } = useTheme();
+  const [isSaving, setIsSaving] = useState(false);
   
+  // Отслеживаем изменения locationEditData для обнаружения удаления операций
+  useEffect(() => {
+    console.log('locationEditData updated in dialog:', 
+      locationEditData?.events?.length || 0, 'operations');
+  }, [locationEditData]);
+  
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const success = await onSave();
+      // Если успешно, диалог закроется внутри onSave
+      setIsSaving(false);
+    } catch (error) {
+      console.error('Error in handleSave:', error);
+      setIsSaving(false);
+    }
+  };
+
   // Используем исходный порядок событий без сортировки
   const events = locationEditData?.events || [];
     
-  // Check if any required fields are empty
-  const hasEmptyFields = locationEditData?.events 
-    ? locationEditData.events.some(event => !event.time || !event.operationType) 
-    : false;
+  // Проверяем наличие незаполненных полей
+  const hasEmptyFields = events.some(event => !event.time || !event.operationType);
   
+  // Проверяем, можно ли удалить операцию
+  const canDeleteOperation = (event: DPHours) => {
+    // Если всего две операции, запрещаем удаление
+    if (events.length <= 2) {
+      return false;
+    }
+    
+    // Подсчитываем количество DP Setup и DP OFF
+    const setupCount = events.filter(e => e.operationType === 'DP Setup').length;
+    const offCount = events.filter(e => e.operationType === 'DP OFF').length;
+    
+    // Если это последний DP Setup или DP OFF, запрещаем удаление
+    if (event.operationType === 'DP Setup' && setupCount <= 1) {
+      return false;
+    }
+    
+    if (event.operationType === 'DP OFF' && offCount <= 1) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Безопасный обработчик удаления с дополнительной проверкой
+  const handleDeleteOperation = (id: string) => {
+    console.log(`EditLocationDialog: Deleting operation ${id}`);
+    onDeleteSingleOperation(id);
+  };
+
   return (
     <Dialog
       open={open}
@@ -263,8 +324,8 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
         }
       }}
     >
-      <DialogTitle>Edit Location</DialogTitle>
-      <DialogContent>
+      <DialogTitle>Edit Location Operations</DialogTitle>
+      <DialogContent dividers>
         {locationEditData && (
           <>
             <Grid container spacing={2} sx={{ mb: 3, mt: 0.5 }}>
@@ -345,8 +406,11 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                     <IconButton
                       size="small"
                       color="error"
-                      onClick={() => onDeleteSingleOperation(event.id)}
-                      disabled={loading}
+                      onClick={() => handleDeleteOperation(event.id)}
+                      disabled={loading || !canDeleteOperation(event)}
+                      title={!canDeleteOperation(event) ? 
+                        "Cannot delete required operations (DP Setup and DP OFF are mandatory)" : 
+                        "Delete operation"}
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
@@ -387,6 +451,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
       <DialogActions>
         <Button 
           onClick={onClose}
+          disabled={isSaving || loading}
           sx={{
             color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : undefined
           }}
@@ -394,9 +459,9 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
           Cancel
         </Button>
         <Button 
-          onClick={onSave} 
+          onClick={handleSave}
           variant="contained" 
-          disabled={!locationEditData?.newLocation || !locationEditData?.date || loading || hasEmptyFields}
+          disabled={!locationEditData?.newLocation || !locationEditData?.date || isSaving || loading || hasEmptyFields}
           sx={{ 
             ml: 1,
             bgcolor: isNightMode ? '#2c3e50' : 'primary.main',
@@ -406,7 +471,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
             }
           }}
         >
-          {loading ? <CircularProgress size={24} /> : 'Save'}
+          {isSaving || loading ? <CircularProgress size={24} /> : 'Save'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -424,7 +489,20 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
   onDelete
 }) => {
   const { isNightMode } = useTheme();
+  const [isSaving, setIsSaving] = useState(false);
   
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const success = await onSave();
+      // Если успешно, диалог закроется внутри onSave
+      setIsSaving(false);
+    } catch (error) {
+      console.error('Error in handleSave:', error);
+      setIsSaving(false);
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -438,7 +516,7 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
       }}
     >
       <DialogTitle>Edit Operation</DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
           <Grid item xs={12} sm={6}>
             <AppDatePicker
@@ -490,18 +568,16 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
         <Button 
           onClick={onDelete} 
           color="error" 
+          disabled={isSaving || loading || !editFormData?.id}
           startIcon={<DeleteForeverIcon />}
-          sx={{ 
-            position: 'absolute', 
-            left: 16,
-            color: isNightMode ? '#f5526b' : undefined
-          }}
+          sx={{ marginRight: 'auto' }}
         >
           Delete
         </Button>
         <Box sx={{ ml: 'auto' }}>
           <Button 
             onClick={onClose}
+            disabled={isSaving || loading}
             sx={{
               color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : undefined
             }}
@@ -509,9 +585,9 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
             Cancel
           </Button>
           <Button 
-            onClick={onSave} 
+            onClick={handleSave} 
             variant="contained" 
-            disabled={!editFormData?.location || !editFormData?.time || !editFormData?.operationType || loading}
+            disabled={!editFormData?.location || !editFormData?.time || !editFormData?.operationType || isSaving || loading}
             sx={{ 
               ml: 1,
               bgcolor: isNightMode ? '#2c3e50' : 'primary.main',
@@ -521,7 +597,7 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
               }
             }}
           >
-            {loading ? <CircularProgress size={24} /> : 'Save'}
+            {isSaving || loading ? <CircularProgress size={24} /> : 'Save'}
           </Button>
         </Box>
       </DialogActions>

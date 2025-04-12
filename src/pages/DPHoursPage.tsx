@@ -28,6 +28,7 @@ import {
   calculateOperationTimesByShifts,
   getDPTimeOperations
 } from '../components/dphours/utils';
+import { validateDPHoursOperations } from '../components/dphours/validation';
 
 // Import components
 import TodayView from '../components/dphours/views/TodayView';
@@ -260,17 +261,39 @@ const DPHoursPage = () => {
     // Check for all fields filled
     if (!complexAdd || !complexAdd.date || !complexAdd.location) {
       showSnackbar('Please enter date and location', 'warning');
-      return;
+      return false;
     }
     
     // Check that all operations have time
     if (complexAdd.operations.some(op => !op.time)) {
       showSnackbar('Please enter time for all operations', 'warning');
-      return;
+      return false;
     }
     
     // Use operations in original order without sorting
     const operations = complexAdd.operations;
+    
+    // Создаем полный список операций для валидации
+    const operationsToValidate = operations.map(op => ({
+      id: `temp-${op.id}`,
+      date: complexAdd.date,
+      time: op.time,
+      location: complexAdd.location,
+      operationType: op.operationType
+    }));
+
+    // Выполняем валидацию
+    const validationResult = validateDPHoursOperations(
+      data,
+      operationsToValidate,
+      complexAdd.date,
+      complexAdd.location
+    );
+
+    if (!validationResult.isValid) {
+      showSnackbar(validationResult.error || 'Validation failed', 'error');
+      return false;
+    }
     
     // Предварительная проверка на дубликаты
     const duplicateIndices: number[] = [];
@@ -289,7 +312,7 @@ const DPHoursPage = () => {
     
     if (duplicateIndices.length === operations.length) {
       showSnackbar('All operations already exist. No new records will be added.', 'warning');
-      return;
+      return false;
     }
     
     if (duplicateIndices.length > 0) {
@@ -300,7 +323,7 @@ const DPHoursPage = () => {
       );
       
       if (!proceed) {
-        return;
+        return false;
       }
     }
     
@@ -336,8 +359,6 @@ const DPHoursPage = () => {
         }
       }
       
-      setComplexAdd(null);
-      
       if (duplicateCount > 0) {
         if (successCount > 0) {
           showSnackbar(`Added ${successCount} events. Skipped ${duplicateCount} duplicate events.`, 'warning');
@@ -351,10 +372,18 @@ const DPHoursPage = () => {
       }
       
       // Refresh data to show new records
-      fetchData();
+      await fetchData();
+      
+      // Close the dialog only if at least one operation was added successfully
+      if (successCount > 0) {
+        setComplexAdd(null);
+        return true;
+      }
+      return false;
     } catch (err) {
       console.error('Failed to add events:', err);
       showSnackbar('Failed to add events', 'error');
+      return false;
     }
   };
 
@@ -478,40 +507,114 @@ const DPHoursPage = () => {
       });
   };
 
-  // Handler for saving changes to single record
+  // Edit Dialog: save changes
   const handleSaveEdit = async () => {
-    if (!editFormData?.id) return;
+    if (!editFormData) return false;
     
     try {
+      // Check required fields
+      if (!editFormData.date || !editFormData.location || !editFormData.time) {
+        showSnackbar('Please fill all required fields', 'warning');
+        return false;
+      }
+      
+      // Проверяем операцию в контексте её локации
+      // Сначала получаем все операции для этой локации и даты
+      const locationOperations = [
+        ...data.filter(
+          op => op.date === editFormData.date && 
+               op.location === editFormData.location && 
+               op.id !== editFormData.id
+        ),
+        editFormData
+      ].sort((a, b) => a.time.localeCompare(b.time));
+      
+      // Выполняем валидацию
+      const validationResult = validateDPHoursOperations(
+        data.filter(op => op.id !== editFormData.id), // исключаем текущую редактируемую операцию
+        locationOperations,
+        editFormData.date,
+        editFormData.location,
+        [editFormData.id]
+      );
+      
+      if (!validationResult.isValid) {
+        showSnackbar(validationResult.error || 'Validation failed', 'error');
+        return false;
+      }
+      
+      // Check duplicates
+      const recordToCheck = {
+        date: editFormData.date,
+        time: editFormData.time,
+        location: editFormData.location,
+        operationType: editFormData.operationType
+      };
+      
+      const isDuplicate = data.some(existingRecord => 
+        existingRecord.id !== editFormData.id && // Exclude self
+        existingRecord.date === recordToCheck.date && 
+        existingRecord.time === recordToCheck.time && 
+        existingRecord.location === recordToCheck.location
+      );
+      
+      if (isDuplicate) {
+        showSnackbar('Cannot save: operation with this time already exists at this location', 'error');
+        return false;
+      }
+      
+      // Update operation
       const success = await updateEvent(editFormData.id, editFormData);
       
       if (success) {
+        showSnackbar('Operation updated successfully', 'success');
         setIsEditDialogOpen(false);
         setEditFormData(null);
-        showSnackbar('Operation updated successfully', 'success');
+        await fetchData(); // Refresh data
+        return true;
       } else {
         showSnackbar('Failed to update operation', 'error');
+        return false;
       }
     } catch (error: any) {
       console.error('Failed to update operation:', error);
-      
-      // Check if it's a duplicate record error
-      if (error.message && error.message.includes('Duplicate')) {
+      if (error.message) {
         showSnackbar(`Cannot update: ${error.message}`, 'error');
       } else {
         showSnackbar('Failed to update operation', 'error');
       }
+      return false;
     }
   };
   
   // Handler for saving location (group of events)
   const handleSaveLocation = async () => {
-    if (!locationEditData) return;
+    if (!locationEditData) return false;
     
     try {
       // Use events in the order they are presented in the interface
       const events = locationEditData.events;
       
+      // Проверяем, что все операции имеют заполненные поля
+      if (events.some(event => !event.time)) {
+        showSnackbar('Please enter time for all operations', 'warning');
+        return false;
+      }
+
+      // Выполняем валидацию
+      const eventIds = events.map(event => event.id);
+      const validationResult = validateDPHoursOperations(
+        data.filter(op => !eventIds.includes(op.id)), // исключаем текущие редактируемые операции
+        events,
+        locationEditData.date,
+        locationEditData.newLocation
+      );
+
+      if (!validationResult.isValid) {
+        showSnackbar(validationResult.error || 'Validation failed', 'error');
+        return false;
+      }
+
       // Предварительная проверка на дубликаты
       const duplicateIndices: number[] = [];
       events.forEach((event, index) => {
@@ -520,7 +623,7 @@ const DPHoursPage = () => {
         
         // Проверяем только новые записи или те, которые изменились
         if (isNewRecord || 
-            event.date !== locationEditData.events[index].date || 
+            event.date !== locationEditData.date || 
             event.time !== locationEditData.events[index].time ||
             locationEditData.newLocation !== locationEditData.oldLocation) {
             
@@ -552,7 +655,7 @@ const DPHoursPage = () => {
       
       if (duplicateIndices.length === events.length) {
         showSnackbar('All operations would create duplicates. No changes will be made.', 'warning');
-        return;
+        return false;
       }
       
       if (duplicateIndices.length > 0) {
@@ -563,7 +666,7 @@ const DPHoursPage = () => {
         );
         
         if (!proceed) {
-          return;
+          return false;
         }
       }
       
@@ -607,8 +710,8 @@ const DPHoursPage = () => {
         }
       }
       
-      setIsLocationEditDialogOpen(false);
-      setLocationEditData(null);
+      // Update data from server for synchronization
+      await fetchData();
       
       if (duplicateCount > 0) {
         if (successCount > 0) {
@@ -622,11 +725,17 @@ const DPHoursPage = () => {
         showSnackbar(`Updated ${successCount} events`, 'success');
       }
       
-      // Update data from server for synchronization
-      await fetchData();
+      // Close the dialog only if at least one operation was updated successfully
+      if (successCount > 0) {
+        setIsLocationEditDialogOpen(false);
+        setLocationEditData(null);
+        return true;
+      }
+      return false;
     } catch (error: any) {
       console.error('Failed to update location:', error);
       showSnackbar('Failed to update records', 'error');
+      return false;
     }
   };
 
@@ -641,10 +750,32 @@ const DPHoursPage = () => {
       // Convert ID to string for safety
       const operationId = String(id);
       
+      console.log(`Attempting to delete operation with ID: ${operationId}`);
+      
+      // Find the operation in our data
+      const operationToDelete = data.find(op => String(op.id) === operationId);
+      if (operationToDelete) {
+        console.log(`Found operation to delete:`, operationToDelete);
+      } else {
+        console.log(`Operation with ID ${operationId} not found in data`);
+      }
+      
       // Check if this is a temporary ID
       if (operationId.startsWith('temp-')) {
-        // For temporary IDs, update only state without API request
+        console.log(`Deleting temporary operation with ID: ${operationId}`);
+        // For temporary IDs, update state without API request
         setData((prev: DPHours[]) => prev.filter((item: DPHours) => String(item.id) !== operationId));
+        
+        // Если открыт диалог редактирования локации, обновляем его состояние
+        if (locationEditData && locationEditData.events.some(event => String(event.id) === operationId)) {
+          console.log(`Updating locationEditData to remove operation with ID: ${operationId}`);
+          // Обновляем список операций в локации
+          setLocationEditData({
+            ...locationEditData,
+            events: locationEditData.events.filter(event => String(event.id) !== operationId)
+          });
+        }
+        
         setIsEditDialogOpen(false);
         setEditFormData(null);
         showSnackbar('Operation deleted successfully', 'success');
@@ -652,33 +783,50 @@ const DPHoursPage = () => {
         return;
       }
       
+      // Если открыт диалог редактирования локации, сначала обновляем его состояние
+      if (locationEditData && locationEditData.events.some(event => String(event.id) === operationId)) {
+        console.log(`Operation ${operationId} found in locationEditData, updating state`);
+        
+        // Сохраняем обновленный список операций
+        const updatedEvents = locationEditData.events.filter(event => String(event.id) !== operationId);
+        console.log(`Updated events count: ${updatedEvents.length}`);
+        
+        // Проверяем, остались ли операции
+        if (updatedEvents.length <= 0) {
+          console.log(`No events left in location, closing dialog`);
+          // Если это последняя операция в локации, закрываем диалог
+          setIsLocationEditDialogOpen(false);
+          setLocationEditData(null);
+        } else {
+          console.log(`Updating locationEditData with ${updatedEvents.length} events`);
+          // Иначе обновляем список операций
+          setLocationEditData({
+            ...locationEditData,
+            events: updatedEvents
+          });
+        }
+      } else if (locationEditData) {
+        console.log(`Operation ${operationId} NOT found in locationEditData events:`, 
+          locationEditData.events.map(e => e.id));
+      }
+      
+      console.log(`Calling deleteEvent API for ID: ${operationId}`);
       const success = await deleteEvent(operationId);
       
       if (success) {
+        console.log(`API deletion successful for operation ${operationId}`);
         // If edit dialog is open, close it
         if (editFormData?.id === operationId) {
           setIsEditDialogOpen(false);
           setEditFormData(null);
         }
-        // Update operations list in edit location dialog if open
-        if (locationEditData && locationEditData.events.some(event => String(event.id) === operationId)) {
-          if (locationEditData.events.length <= 1) {
-            // If this is the last operation in location, close dialog
-            setIsLocationEditDialogOpen(false);
-            setLocationEditData(null);
-          } else {
-            // Otherwise, update operations list
-            setLocationEditData({
-              ...locationEditData,
-              events: locationEditData.events.filter(event => String(event.id) !== operationId)
-            });
-          }
-        }
         
         // Update data after deletion
+        console.log(`Refreshing data after deletion`);
         await fetchData();
         showSnackbar('Operation deleted successfully', 'success');
       } else {
+        console.error(`API deletion failed for operation ${operationId}`);
         showSnackbar('Failed to delete operation', 'error');
       }
     } catch (err) {

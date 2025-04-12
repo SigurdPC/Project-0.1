@@ -37,23 +37,6 @@ export const useValidation = <T extends Record<string, any>>(
   );
 
   /**
-   * Проверяет, не находится ли дата в будущем
-   * @param dateValue строковое значение даты в формате ISO
-   * @returns true, если дата в будущем
-   */
-  const isFutureDate = useCallback((dateValue: string): boolean => {
-    if (!dateValue) return false;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Сбрасываем время, чтобы сравнивать только даты
-    
-    const date = new Date(dateValue);
-    date.setHours(0, 0, 0, 0);
-    
-    return date > today;
-  }, []);
-
-  /**
    * Ищет дубликаты в массиве записей
    * @param records массив записей для проверки
    * @returns индексы записей, которые дублируют существующие данные
@@ -101,8 +84,7 @@ export const useValidation = <T extends Record<string, any>>(
   return {
     checkDuplicate,
     findDuplicates,
-    findDuplicatesForEdit,
-    isFutureDate
+    findDuplicatesForEdit
   };
 };
 
