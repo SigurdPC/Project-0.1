@@ -43,20 +43,44 @@ export const dailyROBsApi = {
 
   // Create a new ROB
   create: async (rob: Omit<DailyROB, 'id'>): Promise<DailyROB> => {
-    const response = await api.post('/dailyROBs', rob);
-    return {
-      ...response.data,
-      id: response.data.id.toString()
-    };
+    try {
+      const response = await api.post('/dailyROBs', rob);
+      return {
+        ...response.data,
+        id: response.data.id.toString()
+      };
+    } catch (error: any) {
+      // Ensure the error is properly propagated with any server information
+      if (error.response && error.response.data) {
+        // Convert the server error to a more detailed exception
+        const serverError = new Error(error.response.data.message || 'Server error');
+        (serverError as any).response = error.response;
+        (serverError as any).data = error.response.data;
+        throw serverError;
+      }
+      throw error; // If not a server response error, just rethrow
+    }
   },
 
   // Update a ROB
   update: async (id: string, rob: Omit<DailyROB, 'id'>): Promise<DailyROB> => {
-    const response = await api.put(`/dailyROBs/${id}`, rob);
-    return {
-      ...response.data,
-      id: response.data.id.toString()
-    };
+    try {
+      const response = await api.put(`/dailyROBs/${id}`, rob);
+      return {
+        ...response.data,
+        id: response.data.id.toString()
+      };
+    } catch (error: any) {
+      // Ensure the error is properly propagated with any server information
+      if (error.response && error.response.data) {
+        // Convert the server error to a more detailed exception
+        const serverError = new Error(error.response.data.message || 'Server error');
+        (serverError as any).response = error.response;
+        (serverError as any).data = error.response.data;
+        throw serverError;
+      }
+      throw error; // If not a server response error, just rethrow
+    }
   },
 
   // Delete a ROB

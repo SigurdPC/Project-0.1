@@ -62,7 +62,7 @@ const DPHoursPage = () => {
   const { 
     data, loading, error, snackbar, showSnackbar, handleSnackbarClose,
     fetchData, addEvent, updateEvent, deleteEvent, deleteMultipleEvents,
-    setData, setLoading
+    setData, setLoading, checkDuplicate
   } = useDataManagement();
   
   const {
@@ -272,19 +272,86 @@ const DPHoursPage = () => {
     // Use operations in original order without sorting
     const operations = complexAdd.operations;
     
+    // Предварительная проверка на дубликаты
+    const duplicateIndices: number[] = [];
+    operations.forEach((op, index) => {
+      const recordToCheck = {
+        date: complexAdd.date,
+        time: op.time,
+        location: complexAdd.location,
+        operationType: op.operationType
+      };
+      
+      if (checkDuplicate(recordToCheck)) {
+        duplicateIndices.push(index);
+      }
+    });
+    
+    if (duplicateIndices.length === operations.length) {
+      showSnackbar('All operations already exist. No new records will be added.', 'warning');
+      return;
+    }
+    
+    if (duplicateIndices.length > 0) {
+      const duplicateCount = duplicateIndices.length;
+      const proceed = window.confirm(
+        `${duplicateCount} out of ${operations.length} operations already exist.` + 
+        ` Do you want to proceed and add only the new operations?`
+      );
+      
+      if (!proceed) {
+        return;
+      }
+    }
+    
     try {
-      for (const op of operations) {
-        await addEvent({
-          date: complexAdd.date,
-          time: op.time,
-          location: complexAdd.location,
-          operationType: op.operationType
-        });
+      let successCount = 0;
+      let failureCount = 0;
+      let duplicateCount = 0;
+      
+      for (let i = 0; i < operations.length; i++) {
+        // Skip already known duplicates
+        if (duplicateIndices.includes(i)) {
+          duplicateCount++;
+          continue;
+        }
+        
+        const op = operations[i];
+        try {
+          await addEvent({
+            date: complexAdd.date,
+            time: op.time,
+            location: complexAdd.location,
+            operationType: op.operationType
+          });
+          successCount++;
+        } catch (error: any) {
+          if (error.message && error.message.includes('Duplicate')) {
+            duplicateCount++;
+            console.warn(`Skipping duplicate record: ${complexAdd.date} ${op.time} at ${complexAdd.location}`);
+          } else {
+            failureCount++;
+            console.error('Error adding event:', error);
+          }
+        }
       }
       
       setComplexAdd(null);
       
-      showSnackbar(`Added ${operations.length} events`, 'success');
+      if (duplicateCount > 0) {
+        if (successCount > 0) {
+          showSnackbar(`Added ${successCount} events. Skipped ${duplicateCount} duplicate events.`, 'warning');
+        } else {
+          showSnackbar(`All events are duplicates. No new records added.`, 'warning');
+        }
+      } else if (failureCount > 0) {
+        showSnackbar(`Added ${successCount} events. Failed to add ${failureCount} events.`, 'warning');
+      } else {
+        showSnackbar(`Added ${successCount} events`, 'success');
+      }
+      
+      // Refresh data to show new records
+      fetchData();
     } catch (err) {
       console.error('Failed to add events:', err);
       showSnackbar('Failed to add events', 'error');
@@ -419,15 +486,21 @@ const DPHoursPage = () => {
       const success = await updateEvent(editFormData.id, editFormData);
       
       if (success) {
-      setIsEditDialogOpen(false);
-      setEditFormData(null);
-      showSnackbar('Operation updated successfully', 'success');
+        setIsEditDialogOpen(false);
+        setEditFormData(null);
+        showSnackbar('Operation updated successfully', 'success');
       } else {
         showSnackbar('Failed to update operation', 'error');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update operation:', error);
-      showSnackbar('Failed to update operation', 'error');
+      
+      // Check if it's a duplicate record error
+      if (error.message && error.message.includes('Duplicate')) {
+        showSnackbar(`Cannot update: ${error.message}`, 'error');
+      } else {
+        showSnackbar('Failed to update operation', 'error');
+      }
     }
   };
   
@@ -439,31 +512,119 @@ const DPHoursPage = () => {
       // Use events in the order they are presented in the interface
       const events = locationEditData.events;
       
-      for (const event of events) {
+      // Предварительная проверка на дубликаты
+      const duplicateIndices: number[] = [];
+      events.forEach((event, index) => {
         const eventId = event.id;
         const isNewRecord = !eventId || String(eventId).startsWith('temp-');
-          
-          const eventData = {
+        
+        // Проверяем только новые записи или те, которые изменились
+        if (isNewRecord || 
+            event.date !== locationEditData.events[index].date || 
+            event.time !== locationEditData.events[index].time ||
+            locationEditData.newLocation !== locationEditData.oldLocation) {
+            
+          const recordToCheck = {
             date: locationEditData.date,
             time: event.time,
             location: locationEditData.newLocation,
+            operationType: event.operationType
+          };
+          
+          // Не проверяем запись на конфликт с самой собой (при редактировании)
+          if (!isNewRecord) {
+            const isDuplicate = data.some(existingRecord => 
+              existingRecord.id !== event.id && // Исключаем проверку с самой собой
+              existingRecord.date === recordToCheck.date && 
+              existingRecord.time === recordToCheck.time && 
+              existingRecord.location === recordToCheck.location
+            );
+            
+            if (isDuplicate) {
+              duplicateIndices.push(index);
+            }
+          }
+          else if (checkDuplicate(recordToCheck)) {
+            duplicateIndices.push(index);
+          }
+        }
+      });
+      
+      if (duplicateIndices.length === events.length) {
+        showSnackbar('All operations would create duplicates. No changes will be made.', 'warning');
+        return;
+      }
+      
+      if (duplicateIndices.length > 0) {
+        const duplicateCount = duplicateIndices.length;
+        const proceed = window.confirm(
+          `${duplicateCount} out of ${events.length} operations would create duplicates.` + 
+          ` Do you want to proceed and update only the non-duplicate operations?`
+        );
+        
+        if (!proceed) {
+          return;
+        }
+      }
+      
+      let successCount = 0;
+      let failureCount = 0;
+      let duplicateCount = 0;
+      
+      for (let i = 0; i < events.length; i++) {
+        // Пропускаем известные дубликаты
+        if (duplicateIndices.includes(i)) {
+          duplicateCount++;
+          continue;
+        }
+        
+        const event = events[i];
+        const eventId = event.id;
+        const isNewRecord = !eventId || String(eventId).startsWith('temp-');
+        
+        const eventData = {
+          date: locationEditData.date,
+          time: event.time,
+          location: locationEditData.newLocation,
           operationType: event.operationType
         };
-          
+        
+        try {
           if (isNewRecord) {
-          await addEvent(eventData);
+            await addEvent(eventData);
           } else {
-          await updateEvent(eventId, eventData);
+            await updateEvent(eventId, eventData);
+          }
+          successCount++;
+        } catch (error: any) {
+          if (error.message && error.message.includes('Duplicate')) {
+            duplicateCount++;
+            console.warn(`Skipping duplicate record: ${eventData.date} ${eventData.time} at ${eventData.location}`);
+          } else {
+            failureCount++;
+            console.error('Error updating/adding event:', error);
+          }
         }
       }
       
       setIsLocationEditDialogOpen(false);
       setLocationEditData(null);
-      showSnackbar('Records updated successfully', 'success');
+      
+      if (duplicateCount > 0) {
+        if (successCount > 0) {
+          showSnackbar(`Updated ${successCount} events. Skipped ${duplicateCount} duplicate events.`, 'warning');
+        } else {
+          showSnackbar(`All events are duplicates. No changes made.`, 'warning');
+        }
+      } else if (failureCount > 0) {
+        showSnackbar(`Updated ${successCount} events. Failed to update ${failureCount} events.`, 'warning');
+      } else {
+        showSnackbar(`Updated ${successCount} events`, 'success');
+      }
       
       // Update data from server for synchronization
       await fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update location:', error);
       showSnackbar('Failed to update records', 'error');
     }
@@ -534,6 +695,31 @@ const DPHoursPage = () => {
       // If this is date field and user entered in dd/mm/yyyy format
       if (field === 'date') {
         value = parseUserDateInput(value);
+      }
+      
+      // Создаем копию обновленных данных для проверки
+      const updatedRecord = {
+        ...editFormData,
+        [field]: value
+      };
+      
+      // Проверяем, не создаст ли обновление дубликат (кроме самой текущей записи)
+      const recordToCheck = {
+        date: updatedRecord.date,
+        time: updatedRecord.time,
+        location: updatedRecord.location,
+        operationType: updatedRecord.operationType
+      };
+      
+      const isDuplicate = data.some(existingRecord => 
+        existingRecord.id !== editFormData.id && // Исключаем проверку с самой собой
+        existingRecord.date === recordToCheck.date && 
+        existingRecord.time === recordToCheck.time && 
+        existingRecord.location === recordToCheck.location
+      );
+      
+      if (isDuplicate) {
+        showSnackbar(`Warning: This change would create a duplicate record. Save may fail.`, 'warning');
       }
       
       setEditFormData({

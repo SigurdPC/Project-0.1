@@ -21,7 +21,8 @@ import {
   Box,
   InputAdornment,
   Typography,
-  CircularProgress
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { useTheme } from '@mui/material/styles';
@@ -41,8 +42,8 @@ export interface Column {
 interface DataTableProps {
   columns: Column[];
   data: any[];
-  onAdd: (newData: any) => void;
-  onEdit: (id: string, updatedData: any) => void;
+  onAdd: (newData: any) => Promise<boolean> | boolean;
+  onEdit: (id: string, updatedData: any) => Promise<boolean> | boolean;
   onDelete: (id: string) => void;
 }
 
@@ -51,6 +52,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const theme = useTheme();
   
   // Пагинация
@@ -104,6 +106,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
       setEditingId(null);
       setFormData({});
     }
+    setValidationError(null);
     setOpen(true);
   };
 
@@ -111,6 +114,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
     setOpen(false);
     setEditingId(null);
     setFormData({});
+    setValidationError(null);
   };
 
   const handleChange = (columnId: string, value: string) => {
@@ -140,15 +144,26 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
 
   const handleSubmit = async () => {
     setLoading(true);
+    setValidationError(null);
+    let success = false;
+    
     try {
       if (editingId) {
-        await onEdit(editingId, formData);
+        success = await onEdit(editingId, formData);
       } else {
-        await onAdd({ ...formData, id: Date.now().toString() });
+        success = await onAdd({ ...formData, id: Date.now().toString() });
       }
-      handleClose();
-    } catch (error) {
+      
+      // Закрываем окно только если операция успешна
+      if (success) {
+        handleClose();
+      }
+    } catch (error: any) {
       console.error('Error submitting form:', error);
+      if (error.message) {
+        setValidationError(error.message);
+      }
+      // Если произошла ошибка, не закрываем окно
     } finally {
       setLoading(false);
     }
@@ -350,6 +365,11 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
           {editingId ? 'Edit Record' : 'Add New Record'}
         </DialogTitle>
         <DialogContent dividers>
+          {validationError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {validationError}
+            </Alert>
+          )}
           <Typography variant="subtitle2" gutterBottom>
             Please fill all required fields:
           </Typography>

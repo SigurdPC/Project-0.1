@@ -43,14 +43,38 @@ export const dphoursApi = {
 
   // Create a new record
   createRecord: async (record: Omit<DPHours, 'id' | 'createdAt'>): Promise<DPHours> => {
-    const response = await api.post('/dphours', record);
-    return response.data;
+    try {
+      const response = await api.post('/dphours', record);
+      return response.data;
+    } catch (error: any) {
+      // Ensure the error is properly propagated with any server information
+      if (error.response && error.response.data) {
+        // Convert the server error to a more detailed exception
+        const serverError = new Error(error.response.data.message || 'Server error');
+        (serverError as any).response = error.response;
+        (serverError as any).data = error.response.data;
+        throw serverError;
+      }
+      throw error; // If not a server response error, just rethrow
+    }
   },
 
   // Update a record
   updateRecord: async (id: string, record: Omit<DPHours, 'id' | 'createdAt'>): Promise<DPHours> => {
-    const response = await api.put(`/dphours/${id}`, record);
-    return response.data;
+    try {
+      const response = await api.put(`/dphours/${id}`, record);
+      return response.data;
+    } catch (error: any) {
+      // Ensure the error is properly propagated with any server information
+      if (error.response && error.response.data) {
+        // Convert the server error to a more detailed exception
+        const serverError = new Error(error.response.data.message || 'Server error');
+        (serverError as any).response = error.response;
+        (serverError as any).data = error.response.data;
+        throw serverError;
+      }
+      throw error; // If not a server response error, just rethrow
+    }
   },
 
   // Delete a record

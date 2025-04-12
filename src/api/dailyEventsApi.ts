@@ -43,20 +43,44 @@ export const dailyEventsApi = {
 
   // Create a new event
   create: async (event: Omit<DailyEvent, 'id'>): Promise<DailyEvent> => {
-    const response = await api.post('/dailyEvents', event);
-    return {
-      ...response.data,
-      id: response.data.id.toString()
-    };
+    try {
+      const response = await api.post('/dailyEvents', event);
+      return {
+        ...response.data,
+        id: response.data.id.toString()
+      };
+    } catch (error: any) {
+      // Ensure the error is properly propagated with any server information
+      if (error.response && error.response.data) {
+        // Convert the server error to a more detailed exception
+        const serverError = new Error(error.response.data.message || 'Server error');
+        (serverError as any).response = error.response;
+        (serverError as any).data = error.response.data;
+        throw serverError;
+      }
+      throw error; // If not a server response error, just rethrow
+    }
   },
 
   // Update an event
   update: async (id: string, event: Omit<DailyEvent, 'id'>): Promise<DailyEvent> => {
-    const response = await api.put(`/dailyEvents/${id}`, event);
-    return {
-      ...response.data,
-      id: response.data.id.toString()
-    };
+    try {
+      const response = await api.put(`/dailyEvents/${id}`, event);
+      return {
+        ...response.data,
+        id: response.data.id.toString()
+      };
+    } catch (error: any) {
+      // Ensure the error is properly propagated with any server information
+      if (error.response && error.response.data) {
+        // Convert the server error to a more detailed exception
+        const serverError = new Error(error.response.data.message || 'Server error');
+        (serverError as any).response = error.response;
+        (serverError as any).data = error.response.data;
+        throw serverError;
+      }
+      throw error; // If not a server response error, just rethrow
+    }
   },
 
   // Delete an event

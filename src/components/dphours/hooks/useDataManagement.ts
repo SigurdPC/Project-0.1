@@ -16,6 +16,7 @@ export interface DataManagementHook {
   deleteMultipleEvents: (eventIds: string[]) => Promise<boolean>;
   setData: React.Dispatch<React.SetStateAction<DPHours[]>>;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  checkDuplicate: (record: Omit<DPHours, 'id'>) => boolean;
 }
 
 export const useDataManagement = (): DataManagementHook => {
@@ -75,6 +76,15 @@ export const useDataManagement = (): DataManagementHook => {
     }
   }, []);
 
+  // Check if record would be a duplicate
+  const checkDuplicate = useCallback((record: Omit<DPHours, 'id'>): boolean => {
+    return data.some(existingRecord => 
+      existingRecord.date === record.date && 
+      existingRecord.time === record.time && 
+      existingRecord.location === record.location
+    );
+  }, [data]);
+
   // Add new event
   const addEvent = useCallback(async (event: Omit<DPHours, 'id'>): Promise<DPHours | null> => {
     try {
@@ -96,11 +106,25 @@ export const useDataManagement = (): DataManagementHook => {
       
       setData(prev => [...prev, fullEvent]);
       return fullEvent;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to add event:', err);
+      
+      // Check if it's an axios error with response data
+      if (err.response && err.response.data) {
+        const errorMessage = err.response.data.message || 'Failed to add event';
+        showSnackbar(errorMessage, 'error');
+        
+        // If the error is about duplicate record, throw it so the UI can handle it
+        if (errorMessage.includes('Duplicate')) {
+          throw new Error(errorMessage);
+        }
+      } else {
+        showSnackbar('Failed to add event', 'error');
+      }
+      
       return null;
     }
-  }, []);
+  }, [showSnackbar]);
 
   // Update event
   const updateEvent = useCallback(async (id: string, updatedData: Partial<DPHours>): Promise<boolean> => {
@@ -123,11 +147,25 @@ export const useDataManagement = (): DataManagementHook => {
       )));
       
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update record:', err);
+      
+      // Check if it's an axios error with response data
+      if (err.response && err.response.data) {
+        const errorMessage = err.response.data.message || 'Failed to update record';
+        showSnackbar(errorMessage, 'error');
+        
+        // If the error is about duplicate record, throw it so the UI can handle it
+        if (errorMessage.includes('Duplicate')) {
+          throw new Error(errorMessage);
+        }
+      } else {
+        showSnackbar('Failed to update record', 'error');
+      }
+      
       return false;
     }
-  }, [data]);
+  }, [data, showSnackbar]);
 
   // Удаление отдельного события по ID
   const deleteEvent = async (id: string): Promise<boolean> => {
@@ -214,6 +252,7 @@ export const useDataManagement = (): DataManagementHook => {
     deleteEvent,
     deleteMultipleEvents,
     setData,
-    setLoading
+    setLoading,
+    checkDuplicate
   };
 }; 

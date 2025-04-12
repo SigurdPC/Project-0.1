@@ -43,20 +43,44 @@ export const bunkeringOperationsApi = {
 
   // Create a new operation
   create: async (operation: Omit<BunkeringOperation, 'id'>): Promise<BunkeringOperation> => {
-    const response = await api.post('/bunkeringOperations', operation);
-    return {
-      ...response.data,
-      id: response.data.id.toString()
-    };
+    try {
+      const response = await api.post('/bunkeringOperations', operation);
+      return {
+        ...response.data,
+        id: response.data.id.toString()
+      };
+    } catch (error: any) {
+      // Ensure the error is properly propagated with any server information
+      if (error.response && error.response.data) {
+        // Convert the server error to a more detailed exception
+        const serverError = new Error(error.response.data.message || 'Server error');
+        (serverError as any).response = error.response;
+        (serverError as any).data = error.response.data;
+        throw serverError;
+      }
+      throw error; // If not a server response error, just rethrow
+    }
   },
 
   // Update an operation
   update: async (id: string, operation: Omit<BunkeringOperation, 'id'>): Promise<BunkeringOperation> => {
-    const response = await api.put(`/bunkeringOperations/${id}`, operation);
-    return {
-      ...response.data,
-      id: response.data.id.toString()
-    };
+    try {
+      const response = await api.put(`/bunkeringOperations/${id}`, operation);
+      return {
+        ...response.data,
+        id: response.data.id.toString()
+      };
+    } catch (error: any) {
+      // Ensure the error is properly propagated with any server information
+      if (error.response && error.response.data) {
+        // Convert the server error to a more detailed exception
+        const serverError = new Error(error.response.data.message || 'Server error');
+        (serverError as any).response = error.response;
+        (serverError as any).data = error.response.data;
+        throw serverError;
+      }
+      throw error; // If not a server response error, just rethrow
+    }
   },
 
   // Delete an operation
