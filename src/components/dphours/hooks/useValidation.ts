@@ -92,13 +92,34 @@ export const useValidation = (data: DPHours[]) => {
       
       // Проверяем, что операции идут в правильной последовательности в течение дня
       for (let i = 0; i < dayOps.length - 1; i++) {
-        const currentIndex = operationSequence.indexOf(dayOps[i].operationType);
-        const nextIndex = operationSequence.indexOf(dayOps[i + 1].operationType);
+        const currentOp = dayOps[i];
+        const nextOp = dayOps[i + 1];
+        
+        // Если текущая операция DP OFF, а следующая DP Setup, проверяем временной интервал между ними
+        if (currentOp.operationType === 'DP OFF' && nextOp.operationType === 'DP Setup') {
+          // Преобразуем время в минуты для удобства сравнения
+          const [currentHours, currentMinutes] = currentOp.time.split(':').map(Number);
+          const [nextHours, nextMinutes] = nextOp.time.split(':').map(Number);
+          
+          const currentTimeMinutes = currentHours * 60 + currentMinutes;
+          const nextTimeMinutes = nextHours * 60 + nextMinutes;
+          
+          // Если между DP OFF и следующим DP Setup прошло достаточно времени (например, 60 минут)
+          const minimumIntervalMinutes = 60; // 1 час
+          
+          if (nextTimeMinutes - currentTimeMinutes >= minimumIntervalMinutes) {
+            // Разрешаем начать новый цикл операций в тот же день
+            continue;
+          }
+        }
+        
+        const currentIndex = operationSequence.indexOf(currentOp.operationType);
+        const nextIndex = operationSequence.indexOf(nextOp.operationType);
         
         if (currentIndex >= nextIndex) {
           errors.push({
             field: 'operationType',
-            message: `Invalid operation sequence: ${dayOps[i].operationType} cannot be followed by ${dayOps[i + 1].operationType} on ${date}`
+            message: `Invalid operation sequence: ${currentOp.operationType} cannot be followed by ${nextOp.operationType} on ${date}`
           });
         }
       }
@@ -357,6 +378,23 @@ export const useValidation = (data: DPHours[]) => {
         // Последняя операция до текущей
         const lastOp = sortedOpsBefore[0];
         
+        // Если последняя операция была DP OFF, и текущая DP Setup, то проверяем:
+        // 1. Новая операция в другой день - разрешено
+        // 2. Новая операция через достаточный интервал времени - разрешено
+        if (lastOp.operationType === 'DP OFF' && record.operationType === 'DP Setup' as OperationType) {
+          const lastDateTime = new Date(`${lastOp.date}T${lastOp.time}`);
+          const currentDateTime = new Date(`${record.date}T${record.time}`);
+          
+          // Проверяем, что операции в разные дни, или прошло достаточно времени (например, 1 час)
+          const timeDifferenceMs = currentDateTime.getTime() - lastDateTime.getTime();
+          const oneHourMs = 60 * 60 * 1000; // 1 час в миллисекундах
+          
+          if (lastOp.date !== record.date || timeDifferenceMs >= oneHourMs) {
+            // Разрешаем начать новую последовательность операций после достаточного интервала
+            return allErrors;
+          }
+        }
+        
         // Проверяем последовательность
         const lastIndex = operationSequence.indexOf(lastOp.operationType);
         const currentIndex = operationSequence.indexOf(record.operationType);
@@ -364,7 +402,7 @@ export const useValidation = (data: DPHours[]) => {
         if (lastIndex >= currentIndex) {
           allErrors.push({
             field: 'operationType',
-            message: `Invalid operation sequence: ${lastOp.operationType} cannot be followed by ${record.operationType}`
+            message: `Invalid operation sequence: ${lastOp.operationType} cannot be followed by ${record.operationType} on ${record.date}`
           });
         }
       } else {
