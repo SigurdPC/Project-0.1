@@ -28,7 +28,6 @@ import {
   calculateOperationTimesByShifts,
   getDPTimeOperations
 } from '../components/dphours/utils';
-import { validateDPHoursOperations } from '../components/dphours/validation';
 
 // Import components
 import TodayView from '../components/dphours/views/TodayView';
@@ -41,6 +40,7 @@ import { useDataManagement } from '../components/dphours/hooks/useDataManagement
 import { useEventFilters } from '../components/dphours/hooks/useEventFilters';
 import { useEventGroups } from '../components/dphours/hooks/useEventGroups';
 import { useTheme } from '../providers/ThemeProvider';
+import { useValidation } from '../components/dphours/hooks/useValidation';
 
 interface Filters {
   startDate: string;
@@ -123,6 +123,9 @@ const DPHoursPage = () => {
       }
     ]
   });
+
+  // Добавляем хук валидации
+  const validation = useValidation(data);
 
   // Convert data to DP Time operations when they change
   useEffect(() => {
@@ -261,69 +264,62 @@ const DPHoursPage = () => {
     // Check for all fields filled
     if (!complexAdd || !complexAdd.date || !complexAdd.location) {
       showSnackbar('Please enter date and location', 'warning');
-      return false;
+      return;
     }
     
     // Check that all operations have time
     if (complexAdd.operations.some(op => !op.time)) {
       showSnackbar('Please enter time for all operations', 'warning');
-      return false;
+      return;
     }
     
     // Use operations in original order without sorting
     const operations = complexAdd.operations;
     
-    // Создаем полный список операций для валидации
-    const operationsToValidate = operations.map(op => ({
-      id: `temp-${op.id}`,
+    // Проверка на дубликаты внутри одного набора операций
+    const uniqueTimes = new Set<string>();
+    const duplicateTimes: string[] = [];
+    
+    for (const op of operations) {
+      if (uniqueTimes.has(op.time)) {
+        duplicateTimes.push(op.time);
+      } else {
+        uniqueTimes.add(op.time);
+      }
+    }
+    
+    if (duplicateTimes.length > 0) {
+      showSnackbar(`Duplicate times detected: ${duplicateTimes.join(', ')}. Operations cannot have the same time.`, 'error');
+      return;
+    }
+    
+    // Преобразуем операции в формат для валидации
+    const opsForValidation = operations.map(op => ({
       date: complexAdd.date,
       time: op.time,
       location: complexAdd.location,
       operationType: op.operationType
     }));
-
-    // Выполняем валидацию
-    const validationResult = validateDPHoursOperations(
-      data,
-      operationsToValidate,
+    
+    // Используем улучшенную валидацию операций на локации
+    const locationValidationErrors = validation.validateLocationOperations(
       complexAdd.date,
-      complexAdd.location
+      complexAdd.location,
+      opsForValidation
     );
-
-    if (!validationResult.isValid) {
-      showSnackbar(validationResult.error || 'Validation failed', 'error');
-      return false;
-    }
     
-    // Предварительная проверка на дубликаты
-    const duplicateIndices: number[] = [];
-    operations.forEach((op, index) => {
-      const recordToCheck = {
-        date: complexAdd.date,
-        time: op.time,
-        location: complexAdd.location,
-        operationType: op.operationType
-      };
-      
-      if (checkDuplicate(recordToCheck)) {
-        duplicateIndices.push(index);
-      }
-    });
-    
-    if (duplicateIndices.length === operations.length) {
-      showSnackbar('All operations already exist. No new records will be added.', 'warning');
-      return false;
-    }
-    
-    if (duplicateIndices.length > 0) {
-      const duplicateCount = duplicateIndices.length;
-      const proceed = window.confirm(
-        `${duplicateCount} out of ${operations.length} operations already exist.` + 
-        ` Do you want to proceed and add only the new operations?`
+    if (locationValidationErrors.length > 0) {
+      // Фильтруем ошибки, чтобы показывать только те, которые относятся к текущей дате
+      const currentDateErrors = locationValidationErrors.filter(error => 
+        // Если сообщение ошибки содержит дату, проверяем что это текущая дата
+        !error.message.includes('on 20') || // Если в сообщении нет упоминания даты "on 20XX"
+        error.message.includes(`on ${complexAdd.date}`) // Или это именно текущая дата
       );
       
-      if (!proceed) {
-        return false;
+      if (currentDateErrors.length > 0) {
+        // Показываем сообщение о первой ошибке
+        showSnackbar(currentDateErrors[0].message, 'error');
+        return;
       }
     }
     
@@ -333,12 +329,6 @@ const DPHoursPage = () => {
       let duplicateCount = 0;
       
       for (let i = 0; i < operations.length; i++) {
-        // Skip already known duplicates
-        if (duplicateIndices.includes(i)) {
-          duplicateCount++;
-          continue;
-        }
-        
         const op = operations[i];
         try {
           await addEvent({
@@ -359,6 +349,11 @@ const DPHoursPage = () => {
         }
       }
       
+      // Закрываем окно только если успешно добавили хотя бы одну запись и нет ошибок
+      if (successCount > 0 && failureCount === 0) {
+        setComplexAdd(null);
+      }
+      
       if (duplicateCount > 0) {
         if (successCount > 0) {
           showSnackbar(`Added ${successCount} events. Skipped ${duplicateCount} duplicate events.`, 'warning');
@@ -372,18 +367,10 @@ const DPHoursPage = () => {
       }
       
       // Refresh data to show new records
-      await fetchData();
-      
-      // Close the dialog only if at least one operation was added successfully
-      if (successCount > 0) {
-        setComplexAdd(null);
-        return true;
-      }
-      return false;
+      fetchData();
     } catch (err) {
       console.error('Failed to add events:', err);
       showSnackbar('Failed to add events', 'error');
-      return false;
     }
   };
 
@@ -507,186 +494,131 @@ const DPHoursPage = () => {
       });
   };
 
-  // Edit Dialog: save changes
+  // Handler for saving changes to single record
   const handleSaveEdit = async () => {
-    if (!editFormData) return false;
+    if (!editFormData?.id) return;
     
-    try {
-      // Check required fields
-      if (!editFormData.date || !editFormData.location || !editFormData.time) {
-        showSnackbar('Please fill all required fields', 'warning');
-        return false;
-      }
-      
-      // Проверяем операцию в контексте её локации
-      // Сначала получаем все операции для этой локации и даты
-      const locationOperations = [
-        ...data.filter(
-          op => op.date === editFormData.date && 
-               op.location === editFormData.location && 
-               op.id !== editFormData.id
-        ),
-        editFormData
-      ].sort((a, b) => a.time.localeCompare(b.time));
-      
-      // Выполняем валидацию
-      const validationResult = validateDPHoursOperations(
-        data.filter(op => op.id !== editFormData.id), // исключаем текущую редактируемую операцию
-        locationOperations,
-        editFormData.date,
-        editFormData.location,
-        [editFormData.id]
-      );
-      
-      if (!validationResult.isValid) {
-        showSnackbar(validationResult.error || 'Validation failed', 'error');
-        return false;
-      }
-      
-      // Check duplicates
-      const recordToCheck = {
+    // Валидируем операцию
+    const errors = validation.validateRecord(
+      {
         date: editFormData.date,
         time: editFormData.time,
         location: editFormData.location,
         operationType: editFormData.operationType
-      };
-      
-      const isDuplicate = data.some(existingRecord => 
-        existingRecord.id !== editFormData.id && // Exclude self
-        existingRecord.date === recordToCheck.date && 
-        existingRecord.time === recordToCheck.time && 
-        existingRecord.location === recordToCheck.location
-      );
-      
-      if (isDuplicate) {
-        showSnackbar('Cannot save: operation with this time already exists at this location', 'error');
-        return false;
-      }
-      
-      // Update operation
+      }, 
+      editFormData.id
+    );
+    
+    if (errors.length > 0) {
+      // Показываем сообщение о первой ошибке
+      showSnackbar(errors[0].message, 'error');
+      return;
+    }
+    
+    try {
       const success = await updateEvent(editFormData.id, editFormData);
       
       if (success) {
-        showSnackbar('Operation updated successfully', 'success');
         setIsEditDialogOpen(false);
         setEditFormData(null);
-        await fetchData(); // Refresh data
-        return true;
+        showSnackbar('Operation updated successfully', 'success');
       } else {
         showSnackbar('Failed to update operation', 'error');
-        return false;
       }
     } catch (error: any) {
       console.error('Failed to update operation:', error);
-      if (error.message) {
+      
+      // Check if it's a duplicate record error
+      if (error.message && error.message.includes('Duplicate')) {
         showSnackbar(`Cannot update: ${error.message}`, 'error');
       } else {
         showSnackbar('Failed to update operation', 'error');
       }
-      return false;
     }
   };
   
   // Handler for saving location (group of events)
   const handleSaveLocation = async () => {
-    if (!locationEditData) return false;
+    if (!locationEditData) return;
     
     try {
       // Use events in the order they are presented in the interface
       const events = locationEditData.events;
       
-      // Проверяем, что все операции имеют заполненные поля
-      if (events.some(event => !event.time)) {
-        showSnackbar('Please enter time for all operations', 'warning');
-        return false;
-      }
-
-      // Выполняем валидацию
-      const eventIds = events.map(event => event.id);
-      const validationResult = validateDPHoursOperations(
-        data.filter(op => !eventIds.includes(op.id)), // исключаем текущие редактируемые операции
-        events,
-        locationEditData.date,
-        locationEditData.newLocation
-      );
-
-      if (!validationResult.isValid) {
-        showSnackbar(validationResult.error || 'Validation failed', 'error');
-        return false;
-      }
-
-      // Предварительная проверка на дубликаты
-      const duplicateIndices: number[] = [];
-      events.forEach((event, index) => {
-        const eventId = event.id;
-        const isNewRecord = !eventId || String(eventId).startsWith('temp-');
+      // Проверка на дубликаты внутри одного набора операций
+      const uniqueTimes = new Map<string, Set<string>>();
+      const duplicateTimes: string[] = [];
+      
+      for (const event of events) {
+        // Группируем по дате
+        if (!uniqueTimes.has(event.date)) {
+          uniqueTimes.set(event.date, new Set<string>());
+        }
         
-        // Проверяем только новые записи или те, которые изменились
-        if (isNewRecord || 
-            event.date !== locationEditData.date || 
-            event.time !== locationEditData.events[index].time ||
-            locationEditData.newLocation !== locationEditData.oldLocation) {
-            
-          const recordToCheck = {
-            date: locationEditData.date,
-            time: event.time,
-            location: locationEditData.newLocation,
-            operationType: event.operationType
-          };
-          
-          // Не проверяем запись на конфликт с самой собой (при редактировании)
-          if (!isNewRecord) {
-            const isDuplicate = data.some(existingRecord => 
-              existingRecord.id !== event.id && // Исключаем проверку с самой собой
-              existingRecord.date === recordToCheck.date && 
-              existingRecord.time === recordToCheck.time && 
-              existingRecord.location === recordToCheck.location
-            );
-            
-            if (isDuplicate) {
-              duplicateIndices.push(index);
+        const timesForDate = uniqueTimes.get(event.date)!;
+        
+        if (timesForDate.has(event.time)) {
+          duplicateTimes.push(`${event.date} ${event.time}`);
+        } else {
+          timesForDate.add(event.time);
+        }
+      }
+      
+      if (duplicateTimes.length > 0) {
+        showSnackbar(`Duplicate times detected: ${duplicateTimes.join(', ')}. Operations cannot have the same time.`, 'error');
+        return;
+      }
+      
+      // Преобразуем операции в формат для валидации
+      const opsForValidation = events.map(event => ({
+        date: event.date,
+        time: event.time,
+        location: locationEditData.newLocation,
+        operationType: event.operationType
+      }));
+      
+      // Используем улучшенную валидацию операций на локации
+      const locationValidationErrors = validation.validateLocationOperations(
+        locationEditData.date,
+        locationEditData.newLocation,
+        opsForValidation
+      );
+      
+      if (locationValidationErrors.length > 0) {
+        // Фильтруем ошибки, чтобы показывать только те, которые относятся к датам из редактируемых операций
+        const operationDates = new Set(events.map(event => event.date));
+        
+        const relevantErrors = locationValidationErrors.filter(error => {
+          // Если сообщение ошибки содержит дату, проверяем что это одна из дат операций
+          // Ищем в сообщении дату в формате "on YYYY-MM-DD"
+          if (error.message.includes('on 20')) {
+            const dateMatch = error.message.match(/on (\d{4}-\d{2}-\d{2})/);
+            if (dateMatch && dateMatch[1]) {
+              const errorDate = dateMatch[1];
+              return operationDates.has(errorDate);
             }
           }
-          else if (checkDuplicate(recordToCheck)) {
-            duplicateIndices.push(index);
-          }
-        }
-      });
-      
-      if (duplicateIndices.length === events.length) {
-        showSnackbar('All operations would create duplicates. No changes will be made.', 'warning');
-        return false;
-      }
-      
-      if (duplicateIndices.length > 0) {
-        const duplicateCount = duplicateIndices.length;
-        const proceed = window.confirm(
-          `${duplicateCount} out of ${events.length} operations would create duplicates.` + 
-          ` Do you want to proceed and update only the non-duplicate operations?`
-        );
+          // Если в сообщении нет упоминания даты, считаем ошибку релевантной
+          return true;
+        });
         
-        if (!proceed) {
-          return false;
+        if (relevantErrors.length > 0) {
+          // Показываем сообщение о первой ошибке
+          showSnackbar(relevantErrors[0].message, 'error');
+          return;
         }
       }
       
       let successCount = 0;
       let failureCount = 0;
-      let duplicateCount = 0;
       
       for (let i = 0; i < events.length; i++) {
-        // Пропускаем известные дубликаты
-        if (duplicateIndices.includes(i)) {
-          duplicateCount++;
-          continue;
-        }
-        
         const event = events[i];
         const eventId = event.id;
         const isNewRecord = !eventId || String(eventId).startsWith('temp-');
         
         const eventData = {
-          date: locationEditData.date,
+          date: event.date,
           time: event.time,
           location: locationEditData.newLocation,
           operationType: event.operationType
@@ -700,42 +632,31 @@ const DPHoursPage = () => {
           }
           successCount++;
         } catch (error: any) {
-          if (error.message && error.message.includes('Duplicate')) {
-            duplicateCount++;
-            console.warn(`Skipping duplicate record: ${eventData.date} ${eventData.time} at ${eventData.location}`);
-          } else {
-            failureCount++;
-            console.error('Error updating/adding event:', error);
+          failureCount++;
+          console.error('Error updating/adding event:', error);
+          
+          if (error.message) {
+            showSnackbar(`Error: ${error.message}`, 'error');
           }
         }
       }
       
-      // Update data from server for synchronization
-      await fetchData();
-      
-      if (duplicateCount > 0) {
-        if (successCount > 0) {
-          showSnackbar(`Updated ${successCount} events. Skipped ${duplicateCount} duplicate events.`, 'warning');
-        } else {
-          showSnackbar(`All events are duplicates. No changes made.`, 'warning');
-        }
-      } else if (failureCount > 0) {
-        showSnackbar(`Updated ${successCount} events. Failed to update ${failureCount} events.`, 'warning');
-      } else {
-        showSnackbar(`Updated ${successCount} events`, 'success');
-      }
-      
-      // Close the dialog only if at least one operation was updated successfully
-      if (successCount > 0) {
+      // Закрываем окно только если успешно обновили все записи
+      if (successCount === events.length) {
         setIsLocationEditDialogOpen(false);
         setLocationEditData(null);
-        return true;
+        showSnackbar(`Updated ${successCount} events`, 'success');
+      } else if (successCount > 0) {
+        showSnackbar(`Updated ${successCount} events. Failed to update ${failureCount} events.`, 'warning');
+      } else {
+        showSnackbar('Failed to update any events', 'error');
       }
-      return false;
+      
+      // Update data from server for synchronization
+      await fetchData();
     } catch (error: any) {
       console.error('Failed to update location:', error);
       showSnackbar('Failed to update records', 'error');
-      return false;
     }
   };
 
@@ -750,32 +671,10 @@ const DPHoursPage = () => {
       // Convert ID to string for safety
       const operationId = String(id);
       
-      console.log(`Attempting to delete operation with ID: ${operationId}`);
-      
-      // Find the operation in our data
-      const operationToDelete = data.find(op => String(op.id) === operationId);
-      if (operationToDelete) {
-        console.log(`Found operation to delete:`, operationToDelete);
-      } else {
-        console.log(`Operation with ID ${operationId} not found in data`);
-      }
-      
       // Check if this is a temporary ID
       if (operationId.startsWith('temp-')) {
-        console.log(`Deleting temporary operation with ID: ${operationId}`);
-        // For temporary IDs, update state without API request
+        // For temporary IDs, update only state without API request
         setData((prev: DPHours[]) => prev.filter((item: DPHours) => String(item.id) !== operationId));
-        
-        // Если открыт диалог редактирования локации, обновляем его состояние
-        if (locationEditData && locationEditData.events.some(event => String(event.id) === operationId)) {
-          console.log(`Updating locationEditData to remove operation with ID: ${operationId}`);
-          // Обновляем список операций в локации
-          setLocationEditData({
-            ...locationEditData,
-            events: locationEditData.events.filter(event => String(event.id) !== operationId)
-          });
-        }
-        
         setIsEditDialogOpen(false);
         setEditFormData(null);
         showSnackbar('Operation deleted successfully', 'success');
@@ -783,50 +682,33 @@ const DPHoursPage = () => {
         return;
       }
       
-      // Если открыт диалог редактирования локации, сначала обновляем его состояние
-      if (locationEditData && locationEditData.events.some(event => String(event.id) === operationId)) {
-        console.log(`Operation ${operationId} found in locationEditData, updating state`);
-        
-        // Сохраняем обновленный список операций
-        const updatedEvents = locationEditData.events.filter(event => String(event.id) !== operationId);
-        console.log(`Updated events count: ${updatedEvents.length}`);
-        
-        // Проверяем, остались ли операции
-        if (updatedEvents.length <= 0) {
-          console.log(`No events left in location, closing dialog`);
-          // Если это последняя операция в локации, закрываем диалог
-          setIsLocationEditDialogOpen(false);
-          setLocationEditData(null);
-        } else {
-          console.log(`Updating locationEditData with ${updatedEvents.length} events`);
-          // Иначе обновляем список операций
-          setLocationEditData({
-            ...locationEditData,
-            events: updatedEvents
-          });
-        }
-      } else if (locationEditData) {
-        console.log(`Operation ${operationId} NOT found in locationEditData events:`, 
-          locationEditData.events.map(e => e.id));
-      }
-      
-      console.log(`Calling deleteEvent API for ID: ${operationId}`);
       const success = await deleteEvent(operationId);
       
       if (success) {
-        console.log(`API deletion successful for operation ${operationId}`);
         // If edit dialog is open, close it
         if (editFormData?.id === operationId) {
           setIsEditDialogOpen(false);
           setEditFormData(null);
         }
+        // Update operations list in edit location dialog if open
+        if (locationEditData && locationEditData.events.some(event => String(event.id) === operationId)) {
+          if (locationEditData.events.length <= 1) {
+            // If this is the last operation in location, close dialog
+            setIsLocationEditDialogOpen(false);
+            setLocationEditData(null);
+          } else {
+            // Otherwise, update operations list
+            setLocationEditData({
+              ...locationEditData,
+              events: locationEditData.events.filter(event => String(event.id) !== operationId)
+            });
+          }
+        }
         
         // Update data after deletion
-        console.log(`Refreshing data after deletion`);
         await fetchData();
         showSnackbar('Operation deleted successfully', 'success');
       } else {
-        console.error(`API deletion failed for operation ${operationId}`);
         showSnackbar('Failed to delete operation', 'error');
       }
     } catch (err) {
@@ -845,35 +727,75 @@ const DPHoursPage = () => {
         value = parseUserDateInput(value);
       }
       
-      // Создаем копию обновленных данных для проверки
+      // Создаем копию обновленных данных для предварительной проверки
       const updatedRecord = {
         ...editFormData,
         [field]: value
       };
       
-      // Проверяем, не создаст ли обновление дубликат (кроме самой текущей записи)
-      const recordToCheck = {
-        date: updatedRecord.date,
-        time: updatedRecord.time,
-        location: updatedRecord.location,
-        operationType: updatedRecord.operationType
-      };
+      // Если изменяется тип операции, проверяем на соответствие последовательности
+      if (field === 'operationType') {
+        // Фильтруем операции на той же локации в тот же день
+        const sameLocationOps = data.filter(op => 
+          op.id !== editFormData.id && // исключаем текущую запись
+          op.date === editFormData.date && 
+          op.location === editFormData.location
+        );
+        
+        if (sameLocationOps.length > 0) {
+          // Добавляем обновленную запись к существующим операциям
+          const allOps = [...sameLocationOps, updatedRecord];
+          
+          // Проверяем последовательность операций
+          const sequenceErrors = validation.validateOperationSequence(
+            editFormData.location, 
+            allOps
+          );
+          
+          if (sequenceErrors.length > 0) {
+            showSnackbar(`Warning: ${sequenceErrors[0].message}`, 'warning');
+          }
+        }
+      }
       
-      const isDuplicate = data.some(existingRecord => 
-        existingRecord.id !== editFormData.id && // Исключаем проверку с самой собой
-        existingRecord.date === recordToCheck.date && 
-        existingRecord.time === recordToCheck.time && 
-        existingRecord.location === recordToCheck.location
+      // Если изменяется время операции, проверяем на перекрытие с другими локациями
+      if (field === 'time') {
+        const timeOverlapErrors = validation.validateTimeOverlap(
+          {
+            date: updatedRecord.date,
+            time: updatedRecord.time,
+            location: updatedRecord.location,
+            operationType: updatedRecord.operationType
+          },
+          updatedRecord.id
+        );
+        
+        // Отображаем только ошибки, относящиеся к текущей дате
+        if (timeOverlapErrors.length > 0) {
+          // Проверяем, что сообщение об ошибке не содержит другую дату, кроме текущей
+          const errorMessage = timeOverlapErrors[0].message;
+          if (errorMessage.includes(updatedRecord.date)) {
+            showSnackbar(`Warning: ${errorMessage}`, 'warning');
+          }
+        }
+      }
+      
+      // Проверяем, не создаст ли обновление дубликат
+      const isDuplicate = validation.checkDuplicate(
+        {
+          date: updatedRecord.date,
+          time: updatedRecord.time,
+          location: updatedRecord.location,
+          operationType: updatedRecord.operationType
+        },
+        updatedRecord.id
       );
       
       if (isDuplicate) {
         showSnackbar(`Warning: This change would create a duplicate record. Save may fail.`, 'warning');
       }
       
-      setEditFormData({
-        ...editFormData,
-        [field]: value
-      });
+      setEditFormData(updatedRecord);
     }
   };
   

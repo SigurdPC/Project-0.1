@@ -177,14 +177,6 @@ export const useDataManagement = (): DataManagementHook => {
     // Пропускаем временные ID, которые начинаются с 'temp-'
     if (id.startsWith('temp-')) {
       console.log(`Skipping temporary ID: ${id}`);
-      
-      // Обновляем локальное состояние, удаляя запись с указанным ID
-      setData(prevData => {
-        const filtered = prevData.filter(item => String(item.id) !== id);
-        console.log(`Filtered out temp ID ${id}. Before: ${prevData.length}, After: ${filtered.length}`);
-        return filtered;
-      });
-      
       return true;
     }
 
@@ -193,16 +185,7 @@ export const useDataManagement = (): DataManagementHook => {
       await dphoursApi.deleteRecord(id);
       
       // Обновляем локальное состояние, удаляя запись с указанным ID
-      setData(prevData => {
-        // Важно привести ID к строке для надежного сравнения
-        const filtered = prevData.filter(item => String(item.id) !== String(id));
-        console.log(`Filtered out permanent ID ${id}. Before: ${prevData.length}, After: ${filtered.length}`);
-        if (prevData.length === filtered.length) {
-          console.warn(`No items were removed from data state for ID: ${id}`);
-          console.log('Current IDs in state:', prevData.map(item => item.id));
-        }
-        return filtered;
-      });
+      setData(prevData => prevData.filter(item => item.id !== id));
       
       return true;
     } catch (error) {
