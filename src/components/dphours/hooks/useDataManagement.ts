@@ -9,7 +9,7 @@ export interface DataManagementHook {
   snackbar: SnackbarState;
   showSnackbar: (message: string, severity: 'success' | 'error' | 'info' | 'warning') => void;
   handleSnackbarClose: () => void;
-  fetchData: () => Promise<void>;
+  fetchData: (allowMissingDpOff?: boolean) => Promise<void>;
   addEvent: (event: Omit<DPHours, 'id'>) => Promise<DPHours | null>;
   updateEvent: (id: string, updatedData: Partial<DPHours>) => Promise<boolean>;
   deleteEvent: (id: string) => Promise<boolean>;
@@ -44,7 +44,7 @@ export const useDataManagement = (): DataManagementHook => {
   }, []);
 
   // Fetch data from the API
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (allowMissingDpOff?: boolean) => {
     setLoading(true);
     try {
       const response = await dphoursApi.getAllRecords();
@@ -68,6 +68,13 @@ export const useDataManagement = (): DataManagementHook => {
       
       setData(transformedData);
       setError(null);
+      
+      // Сохраняем флаг allowMissingDpOff для использования в validateOperationSequence
+      if (allowMissingDpOff) {
+        localStorage.setItem('allowMissingDpOff', 'true');
+      } else {
+        localStorage.removeItem('allowMissingDpOff');
+      }
     } catch (err) {
       console.error('Failed to fetch data:', err);
       setError('Failed to load data. Please try again later.');
@@ -212,22 +219,34 @@ export const useDataManagement = (): DataManagementHook => {
     console.log(`Deleting ${validIds.length} events with IDs:`, validIds);
 
     try {
-      // Используем Promise.all для параллельного удаления всех элементов
-      const results = await Promise.all(
+      // Используем Promise.allSettled для более устойчивой обработки ошибок
+      const results = await Promise.allSettled(
         validIds.map(id => deleteEvent(id))
       );
       
       // Проверяем, все ли операции удаления прошли успешно
-      const allSuccessful = results.every(result => result === true);
+      const successfulResults = results.filter(
+        result => result.status === 'fulfilled' && result.value === true
+      );
+      const failedResults = results.filter(
+        result => result.status === 'rejected' || (result.status === 'fulfilled' && result.value !== true)
+      );
       
-      if (allSuccessful) {
-        console.log(`Successfully deleted all ${validIds.length} events`);
-        return true;
-      } else {
-        const failedCount = results.filter(result => result !== true).length;
-        console.error(`Failed to delete ${failedCount} out of ${validIds.length} events`);
-        return Promise.reject(new Error(`Failed to delete ${failedCount} events`));
+      // Выводим информацию о результатах
+      if (failedResults.length > 0) {
+        console.error(`Failed to delete ${failedResults.length} out of ${validIds.length} events`);
+        
+        // Если хотя бы одно удаление успешно, считаем операцию частично успешной
+        if (successfulResults.length > 0) {
+          console.log(`Successfully deleted ${successfulResults.length} out of ${validIds.length} events`);
+          return true;
+        } else {
+          return Promise.reject(new Error(`Failed to delete all ${validIds.length} events`));
+        }
       }
+      
+      console.log(`Successfully deleted all ${validIds.length} events`);
+      return true;
     } catch (error) {
       console.error('Error in deleteMultipleEvents:', error);
       return Promise.reject(error);

@@ -251,6 +251,13 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
     ? locationEditData.events.some(event => !event.time || !event.operationType) 
     : false;
   
+  // Кнопка удаления для операции
+  const handleDeleteOperation = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this operation?')) {
+      onDeleteSingleOperation(id);
+    }
+  };
+  
   return (
     <Dialog
       open={open}
@@ -345,7 +352,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                     <IconButton
                       size="small"
                       color="error"
-                      onClick={() => onDeleteSingleOperation(event.id)}
+                      onClick={() => handleDeleteOperation(event.id)}
                       disabled={loading}
                     >
                       <DeleteIcon fontSize="small" />

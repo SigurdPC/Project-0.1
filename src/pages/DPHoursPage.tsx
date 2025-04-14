@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   Container, Typography, Box, Paper, 
   Tabs, Tab, 
@@ -61,7 +61,7 @@ const DPHoursPage = () => {
   
   // Data management and state hooks
   const { 
-    data, loading, error, snackbar, showSnackbar, handleSnackbarClose,
+    data, loading, error, snackbar, showSnackbar: originalShowSnackbar, handleSnackbarClose: originalHandleSnackbarClose,
     fetchData, addEvent, updateEvent, deleteEvent, deleteMultipleEvents,
     setData, setLoading, checkDuplicate
   } = useDataManagement();
@@ -387,6 +387,17 @@ const DPHoursPage = () => {
   
   // History: cancel editing location
   const handleCancelLocationEdit = () => {
+    // Спрашиваем подтверждение только если были внесены изменения
+    const hasChanges = locationEditData && (
+      locationEditData.newLocation !== locationEditData.oldLocation ||
+      locationEditData.date !== locationEditData.events[0]?.date ||
+      locationEditData.events.some(event => String(event.id).startsWith('temp-'))
+    );
+    
+    if (hasChanges && !window.confirm('Discard changes?')) {
+      return;
+    }
+    
     setIsLocationEditDialogOpen(false);
     setLocationEditData(null);
   };
@@ -456,7 +467,7 @@ const DPHoursPage = () => {
     }
   };
 
-  // Delete group of events by one location
+  // Handler for deleting group of events by one location
   const handleDeleteLocationEvents = (events: DPHours[]) => {
     if (!events || events.length === 0) {
       console.error('handleDeleteLocationEvents: No events provided');
@@ -498,7 +509,7 @@ const DPHoursPage = () => {
   const handleSaveEdit = async () => {
     if (!editFormData?.id) return;
     
-    // Валидируем операцию
+    // Валидируем операцию, обязательно передаем ID редактируемой записи
     const errors = validation.validateRecord(
       {
         date: editFormData.date,
@@ -506,7 +517,7 @@ const DPHoursPage = () => {
         location: editFormData.location,
         operationType: editFormData.operationType
       }, 
-      editFormData.id
+      String(editFormData.id) // Явно преобразуем ID в строку для безопасности
     );
     
     if (errors.length > 0) {
@@ -516,12 +527,23 @@ const DPHoursPage = () => {
     }
     
     try {
-      const success = await updateEvent(editFormData.id, editFormData);
+      // Создаем чистый объект данных без ID для обновления
+      const cleanData = {
+        date: editFormData.date,
+        time: editFormData.time,
+        location: editFormData.location,
+        operationType: editFormData.operationType
+      };
+      
+      const success = await updateEvent(editFormData.id, cleanData);
       
       if (success) {
         setIsEditDialogOpen(false);
         setEditFormData(null);
         showSnackbar('Operation updated successfully', 'success');
+        
+        // Обновляем данные с сервера
+        await fetchData();
       } else {
         showSnackbar('Failed to update operation', 'error');
       }
@@ -544,6 +566,38 @@ const DPHoursPage = () => {
     try {
       // Use events in the order they are presented in the interface
       const events = locationEditData.events;
+      
+      // Получение списка идентификаторов, которые были удалены из формы
+      // Получаем существующие операции для этой локации
+      const existingOps = data.filter(op => 
+        op.location === locationEditData.oldLocation
+      );
+      
+      // Находим идентификаторы операций, которые были удалены
+      const idsToDelete: string[] = [];
+      existingOps.forEach(existingOp => {
+        // Проверяем, есть ли эта операция все еще в списке событий
+        const stillExists = events.some(event => 
+          // Сравниваем только существующие ID (не временные)
+          event.id && !String(event.id).startsWith('temp-') && 
+          String(event.id) === String(existingOp.id)
+        );
+        
+        if (!stillExists) {
+          idsToDelete.push(String(existingOp.id));
+        }
+      });
+      
+      // Удаляем операции, которые были удалены из формы
+      if (idsToDelete.length > 0) {
+        try {
+          await deleteMultipleEvents(idsToDelete);
+          console.log(`Deleted ${idsToDelete.length} operations during location update`);
+        } catch (error) {
+          console.error('Failed to delete removed operations:', error);
+          showSnackbar('Failed to delete some operations', 'warning');
+        }
+      }
       
       // Проверка на дубликаты внутри одного набора операций
       const uniqueTimes = new Map<string, Set<string>>();
@@ -569,13 +623,19 @@ const DPHoursPage = () => {
         return;
       }
       
-      // Преобразуем операции в формат для валидации
-      const opsForValidation = events.map(event => ({
-        date: event.date,
-        time: event.time,
-        location: locationEditData.newLocation,
-        operationType: event.operationType
-      }));
+      // Преобразуем операции в формат для валидации, сохраняя ID существующих операций
+      const opsForValidation = events.map(event => {
+        // Сохраняем ID только для существующих записей (не временных)
+        const includeId = event.id && !String(event.id).startsWith('temp-');
+        
+        return {
+          ...(includeId ? { id: event.id } : {}), // Включаем ID только для существующих записей
+          date: event.date,
+          time: event.time,
+          location: locationEditData.newLocation,
+          operationType: event.operationType
+        };
+      });
       
       // Используем улучшенную валидацию операций на локации
       const locationValidationErrors = validation.validateLocationOperations(
@@ -637,6 +697,7 @@ const DPHoursPage = () => {
           
           if (error.message) {
             showSnackbar(`Error: ${error.message}`, 'error');
+            break; // Останавливаем процесс при первой ошибке
           }
         }
       }
@@ -660,6 +721,20 @@ const DPHoursPage = () => {
     }
   };
 
+  // Добавим новую функцию для удаления операции только из временного состояния диалога
+  const handleRemoveOperationFromDialog = (id: string) => {
+    if (!locationEditData) return;
+    
+    // Обновляем список операций, удаляя операцию с указанным ID
+    setLocationEditData({
+      ...locationEditData,
+      events: locationEditData.events.filter(event => String(event.id) !== String(id))
+    });
+    
+    // Показываем уведомление об успешном удалении из списка
+    showSnackbar('Operation removed from list', 'info');
+  };
+
   // Handler for deleting single record
   const handleDeleteOperation = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this operation?')) {
@@ -680,6 +755,15 @@ const DPHoursPage = () => {
         showSnackbar('Operation deleted successfully', 'success');
         setLoading(false);
         return;
+      }
+      
+      // Получаем операцию, которую нужно удалить
+      const operationToDelete = data.find(op => String(op.id) === operationId);
+      const isDPOffOperation = operationToDelete?.operationType === 'DP OFF';
+      
+      // Очищаем ошибки до удаления, особенно если это операция DP OFF
+      if (isDPOffOperation) {
+        validation.clearErrors();
       }
       
       const success = await deleteEvent(operationId);
@@ -705,8 +789,15 @@ const DPHoursPage = () => {
           }
         }
         
-        // Update data after deletion
-        await fetchData();
+        // Удаляем запись из локального состояния перед запросом данных с сервера
+        setData((prev: DPHours[]) => prev.filter((item: DPHours) => String(item.id) !== operationId));
+        
+        // Для операции DP OFF используем пропуск проверки наличия DP OFF при обновлении
+        await fetchData(isDPOffOperation);
+        
+        // Очищаем любые оставшиеся ошибки после обновления данных
+        validation.clearErrors();
+        
         showSnackbar('Operation deleted successfully', 'success');
       } else {
         showSnackbar('Failed to delete operation', 'error');
@@ -984,6 +1075,29 @@ const DPHoursPage = () => {
     }
   };
 
+  // Расширяем функцию закрытия снекбара, чтобы она также очищала ошибки валидации
+  const handleSnackbarClose = useCallback(() => {
+    // Вызываем оригинальную функцию
+    originalHandleSnackbarClose();
+    
+    // Очищаем ошибки валидации
+    if (validation) {
+      validation.clearErrors();
+    }
+  }, [originalHandleSnackbarClose, validation]);
+
+  // Обертка над функцией showSnackbar
+  const showSnackbar = useCallback((message: string, severity: 'success' | 'error' | 'info' | 'warning') => {
+    // Если сообщение связано с DP OFF и это ошибка из-за удаления, не показываем его
+    if (severity === 'error' && message.includes('DP OFF') && message.includes('last operation')) {
+      console.log('Suppressing DP OFF validation error after deletion:', message);
+      return;
+    }
+    
+    // Иначе показываем как обычно
+    originalShowSnackbar(message, severity);
+  }, [originalShowSnackbar]);
+
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3 }}>
@@ -1129,7 +1243,7 @@ const DPHoursPage = () => {
         onLocationDateChange={handleLocationDateChange}
         onLocationNameChange={handleLocationNameChange}
         onLocationOperationChange={handleLocationOperationChange}
-        onDeleteSingleOperation={handleDeleteOperation}
+        onDeleteSingleOperation={handleRemoveOperationFromDialog}
         onAddOperation={handleAddLocationOperation}
       />
       

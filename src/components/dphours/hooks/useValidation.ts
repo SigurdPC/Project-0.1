@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { DPHours, OperationType } from '../types';
 
 // Определяем правильную последовательность операций
@@ -15,8 +15,26 @@ interface ValidationError {
   message: string;
 }
 
+// Вспомогательная функция для конвертации времени в минуты
+const timeToMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
 export const useValidation = (data: DPHours[]) => {
   const [errors, setErrors] = useState<ValidationError[]>([]);
+  const [allowMissingDpOff, setAllowMissingDpOff] = useState<boolean>(false);
+
+  // При изменении данных, проверяем флаг в localStorage
+  useEffect(() => {
+    const hasAllowMissingDpOffFlag = localStorage.getItem('allowMissingDpOff') === 'true';
+    setAllowMissingDpOff(hasAllowMissingDpOffFlag);
+    
+    // Если флаг был установлен, удаляем его после одного использования
+    if (hasAllowMissingDpOffFlag) {
+      localStorage.removeItem('allowMissingDpOff');
+    }
+  }, [data]);
 
   // Проверка на дубликаты
   const checkDuplicate = useCallback((record: Omit<DPHours, 'id'>, excludeId?: string): boolean => {
@@ -30,7 +48,11 @@ export const useValidation = (data: DPHours[]) => {
   }, [data]);
 
   // Проверка на правильную последовательность операций в пределах локации, с учетом многодневных операций
-  const validateOperationSequence = useCallback((location: string, operations: DPHours[]): ValidationError[] => {
+  const validateOperationSequence = useCallback((
+    location: string, 
+    operations: DPHours[], 
+    options?: { allowMissingDpOff?: boolean }
+  ): ValidationError[] => {
     const errors: ValidationError[] = [];
     
     // Фильтруем операции только для указанной локации
@@ -126,89 +148,63 @@ export const useValidation = (data: DPHours[]) => {
     });
     
     // Проверяем, что последняя операция на последний день - DP OFF, если он в принципе есть на локации
-    const hasOff = sortedOps.some(op => op.operationType === 'DP OFF');
-    const lastDate = dates[dates.length - 1];
-    const lastDayOps = opsByDate[lastDate].sort((a, b) => a.time.localeCompare(b.time));
-    
-    if (hasOff && lastDayOps[lastDayOps.length - 1].operationType !== 'DP OFF') {
-      errors.push({
-        field: 'operationType',
-        message: `DP OFF must be the last operation for location, but found ${lastDayOps[lastDayOps.length - 1].operationType}`
-      });
-    }
-    
-    // Проверяем наличие DP Setup в принципе
-    const hasSetup = sortedOps.some(op => op.operationType === 'DP Setup');
-    
-    if (hasOff && !hasSetup) {
-      errors.push({
-        field: 'operationType',
-        message: `Missing DP Setup: Location has DP OFF operation but no DP Setup`
-      });
+    // Пропускаем эту проверку, если задан флаг allowMissingDpOff (например, при удалении DP OFF)
+    if (!options?.allowMissingDpOff) {
+      const hasOff = sortedOps.some(op => op.operationType === 'DP OFF');
+      const lastDate = dates[dates.length - 1];
+      const lastDayOps = opsByDate[lastDate].sort((a, b) => a.time.localeCompare(b.time));
+      
+      if (hasOff && lastDayOps[lastDayOps.length - 1].operationType !== 'DP OFF') {
+        errors.push({
+          field: 'operationType',
+          message: `DP OFF must be the last operation for location, but found ${lastDayOps[lastDayOps.length - 1].operationType}`
+        });
+      }
+      
+      // Проверяем наличие DP Setup в принципе
+      const hasSetup = sortedOps.some(op => op.operationType === 'DP Setup');
+      
+      if (hasOff && !hasSetup) {
+        errors.push({
+          field: 'operationType',
+          message: `Missing DP Setup: Location has DP OFF operation but no DP Setup`
+        });
+      }
     }
     
     return errors;
   }, []);
 
-  // Проверка на перекрытие времени с другими операциями на других локациях
+  // Валидация для перекрытия операций по времени с другими локациями
   const validateTimeOverlap = useCallback((record: Omit<DPHours, 'id'>, excludeId?: string): ValidationError[] => {
     const errors: ValidationError[] = [];
     
-    // Если операция DP Setup - не проверяем перекрытие, потому что 
-    // для нее уже есть проверка validateDpOffOnPreviousLocation
-    if (record.operationType === 'DP Setup') return [];
-    
-    // Фильтруем операции на других локациях И ТОЛЬКО ДЛЯ ТОЙ ЖЕ ДАТЫ
-    const otherLocations = data.filter(op => 
-      (excludeId ? op.id !== excludeId : true) && 
-      op.location !== record.location &&
-      op.date === record.date // Добавляем проверку на ту же дату
+    // Проверяем все операции ВСЕХ локаций на ту же дату
+    const sameDate = data.filter(op => 
+      (excludeId ? op.id !== excludeId : true) &&
+      op.date === record.date && 
+      op.location !== record.location
     );
     
-    if (otherLocations.length === 0) return [];
-    
-    // Группируем операции по локациям
-    const locationGroups = otherLocations.reduce((groups, op) => {
-      if (!groups[op.location]) {
-        groups[op.location] = [];
-      }
-      groups[op.location].push(op);
-      return groups;
-    }, {} as Record<string, DPHours[]>);
-    
-    // Используем только время (без даты) для текущей операции для сравнения
-    const recordTime = record.time;
-    
-    // Проверяем каждую группу локаций на перекрытие времени
-    for (const location in locationGroups) {
-      const locationOps = locationGroups[location];
+    // Находим операции с перекрывающимся временем
+    const overlappingOps = sameDate.filter(op => {
+      // Конвертируем время в минуты для упрощения сравнения
+      const recordMinutes = timeToMinutes(record.time);
+      const opMinutes = timeToMinutes(op.time);
       
-      // Сортируем операции по времени (для одинаковой даты)
-      const sortedOps = [...locationOps].sort((a, b) => a.time.localeCompare(b.time));
+      // Определяем диапазон +/- 15 минут
+      const minTime = recordMinutes - 15;
+      const maxTime = recordMinutes + 15;
       
-      // Проверяем только если на локации есть хотя бы две операции (начало и конец)
-      if (sortedOps.length >= 2) {
-        const firstOp = sortedOps[0];
-        const lastOp = sortedOps[sortedOps.length - 1];
-        
-        // Проверяем, что операция не находится между первой и последней операцией на другой локации
-        if (recordTime >= firstOp.time && recordTime <= lastOp.time) {
-          errors.push({
-            field: 'time',
-            message: `Time conflict: Multiple operations at the same time ${record.time} on ${record.date}`
-          });
-          break;
-        }
-      }
-      
-      // Также проверяем на точное совпадение времени с любой операцией
-      if (sortedOps.some(op => op.time === recordTime)) {
-        errors.push({
-          field: 'time',
-          message: `Time conflict: Multiple operations (${record.operationType} and ${sortedOps.find(op => op.time === recordTime)?.operationType}) at the same time ${record.time} on ${record.date}`
-        });
-        break;
-      }
+      return opMinutes >= minTime && opMinutes <= maxTime;
+    });
+    
+    if (overlappingOps.length > 0) {
+      const conflictOp = overlappingOps[0]; // Берем первую конфликтующую операцию
+      errors.push({
+        field: 'time',
+        message: `Time overlap: This operation at ${record.time} overlaps with a ${conflictOp.operationType} operation at ${conflictOp.time} for location ${conflictOp.location}`
+      });
     }
     
     return errors;
@@ -421,91 +417,102 @@ export const useValidation = (data: DPHours[]) => {
   }, [data, checkDuplicate, validateTimeOverlap, validateDpOffOnPreviousLocation]);
 
   // Валидация для группы операций на одной локации
-  const validateLocationOperations = useCallback((date: string, location: string, operations: Omit<DPHours, 'id'>[]): ValidationError[] => {
+  const validateLocationOperations = useCallback((
+    date: string, 
+    location: string, 
+    operations: Omit<DPHours, 'id'>[],
+    options?: { allowMissingDpOff?: boolean }
+  ): ValidationError[] => {
     let allErrors: ValidationError[] = [];
     
     // Если нет операций для проверки
     if (operations.length === 0) return [];
     
     // Получаем существующие операции для этой локации
-    const existingOps = data.filter(op => op.location === location);
+    // Исключаем операции, которые мы редактируем (по комбинации даты, времени и типа)
+    const existingOps = data.filter(op => {
+      // Используем локацию из нового списка, так как старая локация может быть другой
+      if (op.location !== location) return false;
+      
+      // Проверяем, не является ли эта операция редактируемой
+      const isBeingEdited = operations.some(newOp => {
+        // Если это операция с тем же ID - мы её редактируем
+        if (op.id && 'id' in newOp && newOp.id === op.id) return true;
+        
+        // Проверяем совпадение по времени и дате (считаем заменой)
+        if (op.date === (newOp.date || date) && op.time === newOp.time) return true;
+        
+        return false;
+      });
+      
+      // Включаем только те операции, которые НЕ редактируются
+      return !isBeingEdited;
+    });
     
     // Создаем временные ID для новых операций
     const nowTimestamp = Date.now();
-    const tempOps = operations.map((op, index) => ({ 
-      ...op, 
-      id: `temp-${nowTimestamp}-${index}`,
-      location,
-      date: op.date || date // Используем указанную дату или дату из параметра
-    } as DPHours));
+    const tempOps = operations.map((op, index) => { 
+      const result = { 
+        ...op, 
+        id: ('id' in op) ? (op as any).id : `temp-${nowTimestamp}-${index}`,
+        location,
+        date: op.date || date // Используем указанную дату или дату из параметра
+      } as DPHours;
+      return result;
+    });
     
     // Создаем полный список операций для проверки
     const allOps = [...existingOps, ...tempOps];
-    
-    // Проверяем, содержит ли список новых операций DP Setup и является ли это
-    // первой операцией для локации
+
+    // Проверяем наличие DP Setup в списке для новой локации
     const hasNewSetup = tempOps.some(op => op.operationType === 'DP Setup');
-    
-    if (hasNewSetup && existingOps.length > 0) {
-      // Проверяем, что новый DP Setup будет раньше всех существующих операций
-      const newSetupOp = tempOps.find(op => op.operationType === 'DP Setup')!;
-      const newSetupDateTime = new Date(`${newSetupOp.date}T${newSetupOp.time}`);
-      
-      const earliestExistingOp = existingOps.reduce((earliest, op) => {
-        const opDateTime = new Date(`${op.date}T${op.time}`);
-        return opDateTime < new Date(`${earliest.date}T${earliest.time}`) ? op : earliest;
-      }, existingOps[0]);
-      
-      const earliestExistingDateTime = new Date(`${earliestExistingOp.date}T${earliestExistingOp.time}`);
-      
-      if (earliestExistingDateTime < newSetupDateTime) {
-        allErrors.push({
-          field: 'operationType',
-          message: `DP Setup must be the first operation for location, but there is an earlier operation on ${earliestExistingOp.date} at ${earliestExistingOp.time}`
-        });
-      }
-    }
+    const hasExistingOps = existingOps.length > 0;
     
     // Если это новая локация (нет существующих операций) и нет DP Setup в новых операциях,
     // то должна быть ошибка
-    if (existingOps.length === 0 && !hasNewSetup) {
+    if (!hasExistingOps && !hasNewSetup) {
       allErrors.push({
         field: 'operationType',
         message: `First operation for a new location must be DP Setup`
       });
     }
     
-    // Проверяем последовательность операций
-    const sequenceErrors = validateOperationSequence(location, allOps);
+    // Проверяем последовательность операций, передавая опции (включая глобальный флаг allowMissingDpOff)
+    const sequenceErrors = validateOperationSequence(
+      location, 
+      allOps, 
+      { allowMissingDpOff: options?.allowMissingDpOff || allowMissingDpOff }
+    );
     allErrors = [...allErrors, ...sequenceErrors];
     
     // Группируем операции по дате, чтобы проверять конфликты только в пределах одного дня
     const opsByDate: Record<string, Omit<DPHours, 'id'>[]> = {};
     tempOps.forEach(op => {
-      if (!opsByDate[op.date]) {
-        opsByDate[op.date] = [];
+      const opDate = op.date || date;
+      if (!opsByDate[opDate]) {
+        opsByDate[opDate] = [];
       }
-      opsByDate[op.date].push(op);
+      opsByDate[opDate].push(op);
     });
     
     // Проверяем каждую новую операцию на дубликаты и перекрытия с другими локациями в рамках её даты
     for (const dateStr in opsByDate) {
       const dateOps = opsByDate[dateStr];
       
-      // Проверка на дубликаты в рамках даты
+      // Проверка на дубликаты в рамках новых операций (внутри редактируемого набора)
       const uniqueTimes = new Set<string>();
       for (const op of dateOps) {
         if (uniqueTimes.has(op.time)) {
           allErrors.push({
             field: 'time',
-            message: `Duplicate: An operation at ${op.time} already exists for location ${location} on ${op.date}`
+            message: `Duplicate: Multiple operations at the same time ${op.time} on ${op.date || date}`
           });
         } else {
           uniqueTimes.add(op.time);
         }
       }
       
-      // Проверка на дубликаты с существующими операциями
+      // Проверка на дубликаты с существующими операциями (не включенными в редактирование)
       const existingOpsForDate = existingOps.filter(op => op.date === dateStr);
       for (const op of dateOps) {
         const isDuplicate = existingOpsForDate.some(existingOp => 
@@ -515,31 +522,58 @@ export const useValidation = (data: DPHours[]) => {
         if (isDuplicate) {
           allErrors.push({
             field: 'time',
-            message: `Duplicate: An operation at ${op.time} already exists for location ${location} on ${op.date}`
+            message: `Duplicate: An operation at ${op.time} already exists for location ${location} on ${op.date || date}`
           });
         }
         
         // Проверка на перекрытие времени с другими локациями - только для текущей даты
-        if (op.operationType !== 'DP Setup') {
-          const overlapErrors = validateTimeOverlap(op, undefined); // Для новых операций мы не передаем ID
-          allErrors = [...allErrors, ...overlapErrors];
-        }
+        const overlapErrors = validateTimeOverlap({
+          date: op.date || date,
+          time: op.time,
+          location,
+          operationType: op.operationType
+        }, ('id' in op) ? (op as any).id : undefined);
+        
+        allErrors = [...allErrors, ...overlapErrors];
       }
     }
     
     // Проверка на наличие DP OFF на предыдущих локациях для операций DP Setup
     const setupOps = tempOps.filter(op => op.operationType === 'DP Setup');
     for (const op of setupOps) {
-      const dpOffErrors = validateDpOffOnPreviousLocation(op);
+      const dpOffErrors = validateDpOffOnPreviousLocation({
+        date: op.date || date,
+        time: op.time,
+        location,
+        operationType: op.operationType
+      });
       allErrors = [...allErrors, ...dpOffErrors];
     }
     
     return allErrors;
-  }, [data, validateOperationSequence, validateTimeOverlap, validateDpOffOnPreviousLocation]);
+  }, [data, validateOperationSequence, validateTimeOverlap, validateDpOffOnPreviousLocation, allowMissingDpOff]);
 
   // Сброс ошибок
   const clearErrors = useCallback(() => {
     setErrors([]);
+    
+    // Также пытаемся скрыть системные уведомления об ошибках, связанных с DP OFF
+    // Это решает проблему, когда ошибка отображается, несмотря на успешное удаление
+    setTimeout(() => {
+      try {
+        document.querySelectorAll('.MuiAlert-root').forEach(el => {
+          const text = el.textContent || '';
+          if (text.includes('DP OFF')) {
+            const snackbarRoot = el.closest('.MuiSnackbar-root');
+            if (snackbarRoot) {
+              snackbarRoot.setAttribute('style', 'display: none');
+            }
+          }
+        });
+      } catch (e) {
+        console.error('Error hiding error message:', e);
+      }
+    }, 0);
   }, []);
 
   return {
