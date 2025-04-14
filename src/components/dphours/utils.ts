@@ -539,13 +539,8 @@ const calculateTimeInShift = (
     const start = Math.max(opStartMin, shiftStartMin);
     const end = Math.min(opEndMin, shiftEndMin);
 
-    // Расчет минут в смене: разница между концом и началом + 1 минута (включительно)
-    minutesInShift = end - start + 1;
-
-    // Если минут слишком мало, минимум должен быть 60 минут (1 час)
-    if (minutesInShift < 60 && minutesInShift > 0) {
-      minutesInShift = 60;
-    }
+    // Расчет минут в смене: разница между концом и началом (без добавления 1 минуты)
+    minutesInShift = end - start;
     
     // Уточняем фактическое время начала и окончания в пределах смены
     if (start > opStartMin) {
@@ -589,13 +584,13 @@ export const roundTimeCalculationResults = (results: TimeCalculationResult[]): T
     // Копируем результат для безопасного изменения
     const correctedResult = { ...result };
     
-    // Проверяем конечное время - если 23:59, то это полный день
-    if (result.endTime === '23:59') {
-      // Добавляем 1 минуту к общему времени
-      correctedResult.minutesInShift += 1;
-      // Корректируем часы, если нужно
-      correctedResult.hoursInShift = Math.round((correctedResult.minutesInShift / 60) * 100) / 100;
-    }
+    // Больше не добавляем 1 минуту даже для полных дней с временем 23:59
+    // if (result.endTime === '23:59') {
+    //   // Добавляем 1 минуту к общему времени
+    //   correctedResult.minutesInShift += 1;
+    //   // Корректируем часы, если нужно
+    //   correctedResult.hoursInShift = Math.round((correctedResult.minutesInShift / 60) * 100) / 100;
+    // }
     
     return correctedResult;
   });

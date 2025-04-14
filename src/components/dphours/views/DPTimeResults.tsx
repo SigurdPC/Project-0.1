@@ -18,12 +18,7 @@ interface DPTimeResultsProps {
 
 // Helper function to format hours and minutes, including days if needed
 const formatHoursAndMinutes = (minutes: number): string => {
-  if (minutes < 0) return '0h 0m';
-  
-  // Если минут очень мало (менее 1 часа), установим минимум 1 час
-  if (minutes > 0 && minutes < 60) {
-    minutes = 60; // Минимум 1 час
-  }
+  if (minutes < 0) return '0h';
   
   // Rounding values close to full hour
   if (minutes % 60 >= 58) {
@@ -37,7 +32,16 @@ const formatHoursAndMinutes = (minutes: number): string => {
   
   // Форматируем отображение для многодневных операций
   if (days > 0) {
+    // Не показываем минуты, если их значение равно 0
+    if (mins === 0) {
+      return `${days}d ${hours}h`;
+    }
     return `${days}d ${hours}h ${mins}m`;
+  }
+  
+  // Не показываем минуты, если их значение равно 0
+  if (mins === 0) {
+    return `${hours}h`;
   }
   
   // Стандартный формат для периодов менее 24 часов
@@ -393,12 +397,6 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
       }
       
       // Для всех остальных дат с малым временем убедимся, что они показывают минимум 1 час
-      if (result.totalMinutes > 0 && result.totalMinutes < 60) {
-        return {
-          ...result,
-          totalMinutes: 60 // минимум 1 час
-        };
-      }
       
       return result;
     });
