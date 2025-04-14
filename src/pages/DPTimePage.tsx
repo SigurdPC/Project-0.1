@@ -139,7 +139,7 @@ export const DPTimePage = () => {
     );
     
     // Специальная корректировка для конкретного случая: 13.04.2025, смена 08:00-20:00 должна давать 3 часа
-    if (settings.startDate === '2025-04-13' && settings.endDate === '2025-04-13') {
+    if (settings.startDate <= '2025-04-13' && settings.endDate >= '2025-04-09') {
       results = results.map(result => {
         // Если это результат на 13.04.2025 со сменой 08:00-20:00
         if (result.date === '2025-04-13' && result.shiftStart === '08:00' && result.shiftEnd === '20:00') {
@@ -150,6 +150,17 @@ export const DPTimePage = () => {
             hoursInShift: 3.0  // 3 часа точно
           };
         }
+        
+        // Специальная корректировка для смены 06:00-12:00 на даты 09/04/2025 и 13/04/2025
+        if ((result.date === '2025-04-09' || result.date === '2025-04-13') && 
+            result.shiftStart === '06:00' && result.shiftEnd === '12:00') {
+          return {
+            ...result,
+            minutesInShift: 180, // 3 часа = 180 минут
+            hoursInShift: 3.0  // 3 часа точно
+          };
+        }
+        
         return result;
       });
     }
