@@ -28,15 +28,24 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
   
   // Обработчик переключения состояния развернутости
   const handleToggleExpand = (locationKey: string) => {
-    setExpandedLocations(prev => ({
-      ...prev,
-      [locationKey]: !prev[locationKey]
-    }));
+    setExpandedLocations(prev => {
+      // Проверяем текущее состояние
+      const currentState = prev[locationKey];
+      
+      // Если нет явного значения (undefined), считаем, что по умолчанию развернуто (true)
+      const newValue = currentState === undefined ? false : !currentState;
+      
+      return {
+        ...prev,
+        [locationKey]: newValue
+      };
+    });
   };
   
   // Проверка, развернута ли локация
-  const isLocationExpanded = (locationKey: string) => {
-    // По умолчанию локации развернуты
+  const isLocationExpanded = (locationKey: string): boolean => {
+    // Если значение явно задано как false, локация свернута
+    // Во всех остальных случаях (undefined или true) считаем, что локация развёрнута
     return expandedLocations[locationKey] !== false;
   };
 
