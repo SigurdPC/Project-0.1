@@ -1,6 +1,7 @@
 import React from 'react';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
+import { SxProps } from '@mui/material';
 
 interface AppDatePickerProps {
   label?: string;
@@ -12,6 +13,7 @@ interface AppDatePickerProps {
   placeholder?: string;
   fullWidth?: boolean;
   disabled?: boolean;
+  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
 }
 
 const AppDatePicker: React.FC<AppDatePickerProps> = ({
@@ -23,7 +25,8 @@ const AppDatePicker: React.FC<AppDatePickerProps> = ({
   helperText,
   placeholder = 'dd/mm/yyyy',
   fullWidth = true,
-  disabled = false
+  disabled = false,
+  inputProps
 }) => {
   // Преобразуем ISO строку в объект dayjs
   const dayjsValue = value ? dayjs(value) : null;
@@ -52,7 +55,18 @@ const AppDatePicker: React.FC<AppDatePickerProps> = ({
           placeholder,
           fullWidth,
           disabled,
-          size: "small"
+          size: "small",
+          inputProps,
+          sx: {
+            '& .MuiInputBase-root': {
+              height: inputProps?.style?.height || 'auto',
+              '& input': {
+                height: '100%',
+                boxSizing: 'border-box',
+                padding: '14px'
+              }
+            }
+          }
         },
       }}
     />

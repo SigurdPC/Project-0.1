@@ -26,13 +26,10 @@ export interface DailyEvent {
 export interface DailyROB {
   id: string;
   date: string;
-  startTime: string;
-  endTime: string;
-  origin: string;
-  destination: string;
-  operationType: string;
-  consumptionME: number;
-  consumptionAE: number;
+  ulsd: number;
+  changeXL: number;
+  lubOil: number;
+  totalConsumption: number;
 }
 
 export interface DPHours {

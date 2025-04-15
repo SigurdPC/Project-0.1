@@ -30,12 +30,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { formatDate as formatDateDisplay, parseUserDateInput } from '../utils/dateUtils';
 import AppDatePicker from './common/AppDatePicker';
 
+// Константа для высоты полей ввода
+const INPUT_HEIGHT = 56;
+const INPUT_STYLES = {
+  height: INPUT_HEIGHT,
+  padding: '14px',
+  boxSizing: 'border-box' as const
+};
+
 export interface Column {
   id: string;
   label: string;
   type?: 'text' | 'number' | 'date' | 'time' | 'select';
   options?: string[];
   searchable?: boolean;
+  min?: number;
 }
 
 interface DataTableProps {
@@ -96,13 +105,31 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
     setPage(0);
   }, [searchQuery, data]);
 
+  // Функция для получения текущей даты в формате YYYY-MM-DD
+  const getCurrentDate = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleOpen = (row?: any) => {
     if (row) {
       setEditingId(row.id);
       setFormData({ ...row });
     } else {
       setEditingId(null);
-      setFormData({});
+      
+      // Находим колонку с типом date и id = 'date'
+      const dateColumn = columns.find(col => col.type === 'date' && col.id === 'date');
+      
+      // Если такая колонка существует, устанавливаем текущую дату
+      if (dateColumn) {
+        setFormData({ date: getCurrentDate() });
+      } else {
+        setFormData({});
+      }
     }
     setOpen(true);
   };
@@ -139,6 +166,13 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
   };
 
   const handleSubmit = async () => {
+    // Валидация формы перед отправкой
+    const validationError = validateForm();
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+    
     setLoading(true);
     let success = false;
     
@@ -159,6 +193,28 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Функция для валидации формы
+  const validateForm = (): string | null => {
+    for (const column of columns) {
+      const value = formData[column.id];
+      
+      // Проверка обязательных полей
+      if (column.id === 'date' && !value) {
+        return `${column.label} is required`;
+      }
+      
+      // Проверка минимальных значений для числовых полей
+      if (column.type === 'number' && column.min !== undefined && value !== undefined && value !== '') {
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue) && numValue < column.min) {
+          return `${column.label} cannot be less than ${column.min}`;
+        }
+      }
+    }
+    
+    return null;
   };
   
   // Обработчики пагинации
@@ -187,9 +243,13 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
             onChange={(e) => handleChange(column.id, e.target.value)}
             notched
             sx={{
+              height: INPUT_HEIGHT,
               '& .MuiSelect-select': {
-                paddingTop: '16px',
-                paddingBottom: '8px',
+                height: INPUT_HEIGHT,
+                display: 'flex',
+                alignItems: 'center',
+                paddingTop: '0',
+                paddingBottom: '0'
               }
             }}
           >
@@ -211,6 +271,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
             value={formData[column.id] || null}
             onChange={(date) => handleChange(column.id, date || '')}
             fullWidth
+            inputProps={{ style: { height: INPUT_HEIGHT } }}
           />
         </Box>
       );
@@ -228,7 +289,20 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
         InputLabelProps={{
           shrink: true,
         }}
-        sx={{ mb: 2 }}
+        inputProps={{
+          min: column.type === 'number' && column.min !== undefined ? column.min : undefined,
+          style: INPUT_STYLES
+        }}
+        sx={{ 
+          mb: 2,
+          '& .MuiInputBase-root': {
+            height: INPUT_HEIGHT
+          },
+          '& input': {
+            height: '100%',
+            boxSizing: 'border-box'
+          }
+        }}
       />
     );
   };
@@ -249,54 +323,17 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
           value={searchQuery}
           onChange={handleSearchChange}
           size="small"
-          sx={{ 
-            width: '250px',
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '10px',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              '&:hover': {
-                borderColor: theme.palette.primary.main,
-                boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-                transform: 'translateY(-1px)'
-              },
-              '&.Mui-focused': {
-                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.25)}`,
-                borderColor: theme.palette.primary.main,
-                borderWidth: '2px',
-                transform: 'translateY(-2px)'
-              }
-            },
-            '& .MuiInputBase-input': {
-              padding: '10px 14px',
-              '&::placeholder': {
-                opacity: 0.7,
-                transition: 'opacity 0.2s ease',
-              },
-              '&:focus::placeholder': {
-                opacity: 0.5
-              }
-            },
-            '& .MuiInputAdornment-root': {
-              marginLeft: '8px',
-              '& .MuiSvgIcon-root': {
-                fontSize: '1.2rem',
-                color: theme.palette.primary.main,
-                opacity: 0.7,
-                transition: 'all 0.2s ease',
-              }
-            },
-            '&:hover .MuiInputAdornment-root .MuiSvgIcon-root': {
-              opacity: 1,
-              transform: 'scale(1.1)'
-            }
-          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
                 <SearchIcon />
               </InputAdornment>
             ),
+          }}
+          sx={{
+            '& .MuiInputBase-root': {
+              height: 40
+            }
           }}
         />
       </Box>
@@ -323,8 +360,14 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
                     </TableCell>
                   ))}
                   <TableCell align="right">
-                    <IconButton onClick={() => handleOpen(row)} size="small">
+                    <IconButton onClick={() => handleOpen(row)} size="small" sx={{ mr: 1 }}>
                       <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton 
+                      onClick={() => onDelete(row.id)} 
+                      size="small"
+                    >
+                      <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
                 </TableRow>
@@ -352,7 +395,11 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
         />
       )}
 
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+      <Dialog 
+        open={open} 
+        onClose={handleClose}
+        maxWidth="md"
+      >
         <DialogTitle>
           {editingId ? 'Edit Record' : 'Add New Record'}
         </DialogTitle>
@@ -367,7 +414,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
           <Button 
             onClick={handleSubmit} 
             color="primary" 
-            variant="contained"
+            variant="contained" 
             disabled={loading}
           >
             {loading ? <CircularProgress size={24} /> : (editingId ? 'Save' : 'Add')}
