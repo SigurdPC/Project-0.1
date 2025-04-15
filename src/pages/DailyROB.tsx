@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import {
   Today as TodayIcon,
-  Timeline as TimelineIcon
+  MenuBook as MenuBookIcon
 } from '@mui/icons-material';
 import DataTable, { Column } from '../components/DataTable';
 import type { DailyROB as DailyROBType } from '../types';
@@ -313,7 +313,7 @@ const DailyROB = () => {
           }}
         >
           <Tab icon={<TodayIcon />} label="Today" />
-          <Tab icon={<TimelineIcon />} label="History" />
+          <Tab icon={<MenuBookIcon />} label="History" />
         </Tabs>
       </Paper>
 
