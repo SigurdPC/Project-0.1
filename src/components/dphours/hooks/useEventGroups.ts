@@ -21,8 +21,6 @@ export const useEventGroups = (): EventGroupsHook => {
     // Temporary structure for grouping
     const tempGroups: Record<string, DPHours[][]> = {};
     
-    // Используем события в исходном порядке без сортировки
-    
     // Process all events
     dateEvents.forEach((event) => {
       const location = event.location;
@@ -65,7 +63,19 @@ export const useEventGroups = (): EventGroupsHook => {
     groupedEvents: GroupedEvents
   ): string[] => {
     if (!searchQuery.trim()) {
-      return Object.keys(groupedEvents);
+      // Get all locations
+      const locations = Object.keys(groupedEvents);
+      
+      // Sort locations by their earliest operation time
+      return locations.sort((locA, locB) => {
+        const firstEventA = groupedEvents[locA]?.[0]?.[0];
+        const firstEventB = groupedEvents[locB]?.[0]?.[0];
+        
+        if (!firstEventA) return 1;
+        if (!firstEventB) return -1;
+        
+        return firstEventA.time.localeCompare(firstEventB.time);
+      });
     }
     
     const query = searchQuery.toLowerCase();
@@ -92,7 +102,16 @@ export const useEventGroups = (): EventGroupsHook => {
       }
     });
     
-    return filteredLocations;
+    // Sort filtered locations by their earliest operation time
+    return filteredLocations.sort((locA, locB) => {
+      const firstEventA = groupedEvents[locA]?.[0]?.[0];
+      const firstEventB = groupedEvents[locB]?.[0]?.[0];
+      
+      if (!firstEventA) return 1;
+      if (!firstEventB) return -1;
+      
+      return firstEventA.time.localeCompare(firstEventB.time);
+    });
   }, []);
 
   // Get filtered events for a specific location

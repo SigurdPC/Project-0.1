@@ -42,15 +42,26 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
 
   // Группировка событий по локациям с разделением по операциям DP OFF
   const eventsByLocation = useMemo(() => {
+    // Сначала отсортируем все события по дате и времени
+    // Это гарантирует, что события будут добавляться в нужном порядке
+    const sortedEvents = [...events].sort((a, b) => {
+      // Сначала сортируем по дате
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      
+      // Затем по времени
+      return a.time.localeCompare(b.time);
+    });
+    
+    console.log('Sorted input events:', sortedEvents.map(e => `${e.location} (${e.date} ${e.time} - ${e.operationType})`));
+    
     const grouped: Record<string, DPHours[][]> = {};
     
     // Временная структура для группировки
     const tempGroups: Record<string, DPHours[][]> = {};
     
-    // Используем события в исходном порядке без сортировки
-    
-    // Проходим по всем событиям
-    events.forEach((event) => {
+    // Обрабатываем события, уже отсортированные по времени и дате
+    sortedEvents.forEach((event) => {
       const location = event.location;
       
       // Инициализируем структуру для локации, если её ещё нет
@@ -143,100 +154,156 @@ const Timeline: React.FC<TimelineProps> = ({ events, onEdit, onEditLocation, onD
     return null;
   }
   
+  // Тип для блока операций
+  interface OperationBlock {
+    location: string;
+    groupIndex: number;
+    events: DPHours[];
+    startDate: string;
+    startTime: string;
+    blockKey: string;
+  }
+  
+  // Преобразуем структуру для сортировки и отображения
+  // 1. Каждая локация может появляться несколько раз в разное время
+  // 2. Сортируем все блоки локаций по времени первой операции
+  const operationBlocks: OperationBlock[] = [];
+  
+  // Обрабатываем каждую локацию
+  Object.entries(eventsByLocation).forEach(([location, locationGroups]) => {
+    // Обрабатываем каждую группу операций для локации
+    locationGroups.forEach((group, groupIndex) => {
+      // Пропускаем пустые группы
+      if (group.length === 0) return;
+      
+      // Сортируем операции по времени
+      const sortedOps = [...group].sort((a, b) => a.time.localeCompare(b.time));
+      const firstOp = sortedOps[0];
+      
+      // Добавляем блок операций с информацией для сортировки
+      operationBlocks.push({
+        location,
+        groupIndex,
+        events: sortedOps,
+        startDate: firstOp.date,
+        startTime: firstOp.time,
+        // Ключ блока для поддержания уникальности
+        blockKey: `${location}-${groupIndex}`
+      });
+    });
+  });
+  
+  // Сортируем блоки операций по дате и времени начала
+  const sortedBlocks = operationBlocks.sort((a, b) => {
+    // Сначала сортируем по дате
+    const dateCompare = a.startDate.localeCompare(b.startDate);
+    if (dateCompare !== 0) return dateCompare;
+    
+    // Затем по времени
+    const timeCompare = a.startTime.localeCompare(b.startTime);
+    if (timeCompare !== 0) return timeCompare;
+    
+    // Если и время совпадает, сортируем по номеру локации
+    const locA = parseInt(a.location) || 0;
+    const locB = parseInt(b.location) || 0;
+    return locA - locB;
+  });
+  
+  // Отладочный вывод для проверки сортировки
+  console.log('Sorted operation blocks:', sortedBlocks.map(block => 
+    `${block.location} (${block.startDate} ${block.startTime})`
+  ));
+  
   return (
     <Box sx={{ mt: 2 }}>
-      {Object.entries(eventsByLocation).map(([location, locationGroups]) => (
-        // Отображаем каждую группу отдельно
-        locationGroups.map((locationEvents, groupIndex) => {
-          const locationKey = `${location}-${groupIndex}`;
-          const expanded = isLocationExpanded(locationKey);
-          
-          return (
-            <Paper key={locationKey} sx={{ mb: 3, overflow: 'hidden' }}>
-              <Box 
-                onClick={() => handleToggleExpand(locationKey)}
-                sx={{ 
-                  p: 1.5, 
-                  bgcolor: isNightMode ? '#374151' : '#1976d2', 
-                  color: isNightMode ? 'rgba(255, 255, 255, 0.85)' : 'white',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s ease',
-                  '&:hover': {
-                    bgcolor: isNightMode ? '#374151' : '#1565c0',
-                  }
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  {expanded ? <ExpandLessIcon sx={{ mr: 1 }} /> : <ExpandMoreIcon sx={{ mr: 1 }} />}
-                  <Typography variant="subtitle1" fontWeight="medium">
-                    {`Location: ${location}`}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ mr: 1 }}>
-                    {locationEvents.length} operations
-                  </Typography>
-                  <IconButton 
-                    size="small" 
-                    sx={{ 
-                      color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : 'white', 
-                      mr: 0.5 
-                    }}
-                    onClick={(e) => handleEditLocationClick(e, location, locationEvents)}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton 
-                    size="small" 
-                    sx={{ color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : 'white' }}
-                    onClick={(e) => handleDeleteLocationClick(e, locationEvents)}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Box>
+      {sortedBlocks.map(({ location, events, blockKey }) => {
+        const expanded = isLocationExpanded(blockKey);
+        
+        return (
+          <Paper key={blockKey} sx={{ mb: 3, overflow: 'hidden' }}>
+            <Box 
+              onClick={() => handleToggleExpand(blockKey)}
+              sx={{ 
+                p: 1.5, 
+                bgcolor: isNightMode ? '#374151' : '#1976d2', 
+                color: isNightMode ? 'rgba(255, 255, 255, 0.85)' : 'white',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease',
+                '&:hover': {
+                  bgcolor: isNightMode ? '#374151' : '#1565c0',
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                {expanded ? <ExpandLessIcon sx={{ mr: 1 }} /> : <ExpandMoreIcon sx={{ mr: 1 }} />}
+                <Typography variant="subtitle1" fontWeight="medium">
+                  {`Location: ${location}`}
+                </Typography>
               </Box>
-              
-              <Collapse in={expanded} timeout="auto" unmountOnExit>
-                <List sx={{ width: '100%' }}>
-                  {locationEvents.map((event, index) => (
-                    <React.Fragment key={event.id || `temp-${index}`}>
-                      {index > 0 && <Divider component="li" />}
-                      <ListItem 
-                        sx={{ 
-                          py: 1.5,
-                          borderLeft: `4px solid ${operationColors[event.operationType]}`,
-                          pl: 3
-                        }}
-                      >
-                        <ListItemText
-                          primary={
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
-                                {event.time}
-                              </Typography>
-                              <Chip 
-                                label={event.operationType}
-                                size="small"
-                                sx={{ 
-                                  backgroundColor: operationColors[event.operationType],
-                                  color: 'white'
-                                }}
-                              />
-                            </Box>
-                          }
-                        />
-                      </ListItem>
-                    </React.Fragment>
-                  ))}
-                </List>
-              </Collapse>
-            </Paper>
-          );
-        })
-      ))}
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ mr: 1 }}>
+                  {events.length} operations
+                </Typography>
+                <IconButton 
+                  size="small" 
+                  sx={{ 
+                    color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : 'white', 
+                    mr: 0.5 
+                  }}
+                  onClick={(e) => handleEditLocationClick(e, location, events)}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+                <IconButton 
+                  size="small" 
+                  sx={{ color: isNightMode ? 'rgba(255, 255, 255, 0.7)' : 'white' }}
+                  onClick={(e) => handleDeleteLocationClick(e, events)}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Box>
+            
+            <Collapse in={expanded} timeout="auto" unmountOnExit>
+              <List sx={{ width: '100%' }}>
+                {events.map((event, index) => (
+                  <React.Fragment key={event.id || `temp-${index}`}>
+                    {index > 0 && <Divider component="li" />}
+                    <ListItem 
+                      sx={{ 
+                        py: 1.5,
+                        borderLeft: `4px solid ${operationColors[event.operationType]}`,
+                        pl: 3
+                      }}
+                    >
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="body1" component="span" fontWeight="bold" sx={{ mr: 2 }}>
+                              {event.time}
+                            </Typography>
+                            <Chip 
+                              label={event.operationType}
+                              size="small"
+                              sx={{ 
+                                backgroundColor: operationColors[event.operationType],
+                                color: 'white'
+                              }}
+                            />
+                          </Box>
+                        }
+                      />
+                    </ListItem>
+                  </React.Fragment>
+                ))}
+              </List>
+            </Collapse>
+          </Paper>
+        );
+      })}
     </Box>
   );
 };

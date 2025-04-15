@@ -54,38 +54,81 @@ const HistoryView: React.FC<HistoryViewProps> = ({
       );
     }
     
+    // Создаем блоки операций для сортировки
+    interface OperationBlock {
+      location: string;
+      groupIndex: number;
+      events: DPHours[];
+      startTime: string;
+      endTime: string;
+      blockKey: string;
+    }
+    
+    const operationBlocks: OperationBlock[] = [];
+    
+    // Для каждой локации создаем блоки операций
+    locationsForDate.forEach(location => {
+      if (!groupedEvents[location]) return;
+      
+      groupedEvents[location].forEach((group, groupIndex) => {
+        if (group.length === 0) return;
+        
+        // Сортируем операции по времени
+        const sortedEvents = [...group].sort((a, b) => a.time.localeCompare(b.time));
+        const firstEvent = sortedEvents[0];
+        const lastEvent = sortedEvents[sortedEvents.length - 1];
+        
+        operationBlocks.push({
+          location,
+          groupIndex,
+          events: sortedEvents,
+          startTime: firstEvent.time,
+          endTime: lastEvent.time,
+          blockKey: `${date}-${location}-${groupIndex}`
+        });
+      });
+    });
+    
+    // Сортируем блоки операций по времени начала
+    const sortedBlocks = operationBlocks.sort((a, b) => {
+      const timeCompare = a.startTime.localeCompare(b.startTime);
+      if (timeCompare !== 0) return timeCompare;
+      
+      // Если время одинаковое, сортируем по локации
+      const locA = parseInt(a.location) || 0;
+      const locB = parseInt(b.location) || 0;
+      return locA - locB;
+    });
+    
     return (
       <Box>
-        {locationsForDate.map((location: string) => (
-          // Render all groups for each location
-          groupedEvents[location]?.map((group, groupIndex) => (
-            <LocationCard
-              key={`${date}-${location}-${groupIndex}`}
-              location={location}
-              events={group}
-              onEdit={() => onEditLocation(date, location, group)}
-              onDelete={() => {
-                if (window.confirm(`Are you sure you want to delete all operations for this location "${location}"?`)) {
-                  if (group && group.length > 0) {
-                    // Filter only events with IDs
-                    const eventsWithIds = group.filter(event => event && event.id);
-                    
-                    if (eventsWithIds.length > 0) {
-                      console.log(`Deleting ${eventsWithIds.length} events for location "${location}"`);
-                      onDeleteLocationEvents(eventsWithIds);
-                    } else {
-                      console.error('No events with valid IDs found for deletion', {
-                        location,
-                        totalEvents: group.length
-                      });
-                    }
+        {sortedBlocks.map(({ location, events, blockKey, startTime, endTime }) => (
+          <LocationCard
+            key={blockKey}
+            location={location}
+            events={events}
+            onEdit={() => onEditLocation(date, location, events)}
+            onDelete={() => {
+              if (window.confirm(`Are you sure you want to delete all operations for this location "${location}"?`)) {
+                if (events && events.length > 0) {
+                  // Filter only events with IDs
+                  const eventsWithIds = events.filter(event => event && event.id);
+                  
+                  if (eventsWithIds.length > 0) {
+                    console.log(`Deleting ${eventsWithIds.length} events for location "${location}"`);
+                    onDeleteLocationEvents(eventsWithIds);
                   } else {
-                    console.error('No operations found for deletion');
+                    console.error('No events with valid IDs found for deletion', {
+                      location,
+                      totalEvents: events.length
+                    });
                   }
+                } else {
+                  console.error('No operations found for deletion');
                 }
-              }}
-            />
-          ))
+              }
+            }}
+          />
         ))}
       </Box>
     );

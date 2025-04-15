@@ -69,6 +69,15 @@ const LocationCard: React.FC<LocationCardProps> = ({
     onEdit();
   };
   
+  // Очищаем информацию о времени из названия локации
+  let locationDisplay = location;
+  
+  // Если в строке локации есть время, извлекаем только номер локации
+  const locationParts = location.match(/(\d+)(\s+\d+:\d+\s+-\s+\d+:\d+)?/);
+  if (locationParts && locationParts.length >= 2) {
+    locationDisplay = `Location: ${locationParts[1]}`;
+  }
+  
   return (
     <Paper sx={{ mb: 3, overflow: 'hidden' }}>
       <Box 
@@ -90,7 +99,7 @@ const LocationCard: React.FC<LocationCardProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {expanded ? <ExpandLessIcon sx={{ mr: 1 }} /> : <ExpandMoreIcon sx={{ mr: 1 }} />}
           <Typography variant="subtitle1" fontWeight="bold">
-            {location}
+            {locationDisplay}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -120,7 +129,9 @@ const LocationCard: React.FC<LocationCardProps> = ({
       
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <List sx={{ width: '100%' }}>
-          {events.map((event, index) => (
+          {events
+            .sort((a, b) => a.time.localeCompare(b.time))
+            .map((event, index) => (
             <React.Fragment key={event.id || `temp-${index}`}>
               {index > 0 && <Divider component="li" />}
               <ListItem 

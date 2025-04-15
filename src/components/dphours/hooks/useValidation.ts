@@ -192,9 +192,9 @@ export const useValidation = (data: DPHours[]) => {
       const recordMinutes = timeToMinutes(record.time);
       const opMinutes = timeToMinutes(op.time);
       
-      // Определяем диапазон +/- 15 минут
-      const minTime = recordMinutes - 15;
-      const maxTime = recordMinutes + 15;
+      // Определяем диапазон +/- 1 минута вместо 15 минут
+      const minTime = recordMinutes - 1;
+      const maxTime = recordMinutes + 1;
       
       return opMinutes >= minTime && opMinutes <= maxTime;
     });
@@ -203,7 +203,7 @@ export const useValidation = (data: DPHours[]) => {
       const conflictOp = overlappingOps[0]; // Берем первую конфликтующую операцию
       errors.push({
         field: 'time',
-        message: `Time overlap: This operation at ${record.time} overlaps with a ${conflictOp.operationType} operation at ${conflictOp.time} for location ${conflictOp.location}`
+        message: `Time overlap: This operation at ${record.time} overlaps with a ${conflictOp.operationType} operation at ${conflictOp.time} for location ${conflictOp.location} (operations must be at least 2 minutes apart)`
       });
     }
     
