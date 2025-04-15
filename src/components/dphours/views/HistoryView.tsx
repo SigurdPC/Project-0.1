@@ -4,6 +4,7 @@ import { DPHours } from '../types';
 import SearchBar from '../components/SearchBar';
 import HistoryItem from '../components/HistoryItem';
 import LocationCard from '../components/LocationCard';
+import PDFExportButton from '../components/PDFExportButton';
 import { GroupedEvents } from '../hooks/useEventGroups';
 
 interface HistoryViewProps {
@@ -136,7 +137,16 @@ const HistoryView: React.FC<HistoryViewProps> = ({
 
   return (
     <Paper sx={{ p: 3, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          {filteredDates.length > 0 && (
+            <PDFExportButton
+              paginatedDates={filteredDates}
+              getFilteredEventsForDate={getFilteredEventsForDate}
+              getFilteredLocationsForDate={getFilteredLocationsForDate}
+            />
+          )}
+        </Box>
         <SearchBar
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
