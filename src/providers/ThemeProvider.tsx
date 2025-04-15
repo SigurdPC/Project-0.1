@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useMemo, ReactNode, useEffect } from 'react';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
-import { PaletteMode } from '@mui/material';
+import { PaletteMode, CssBaseline } from '@mui/material';
 
 type ThemeContextType = {
   mode: PaletteMode;
@@ -76,6 +76,36 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
           },
         },
         components: {
+          MuiCssBaseline: {
+            styleOverrides: {
+              body: {
+                scrollbarColor: mode === 'dark' ? '#4f5b62 #1e1e1e' : 'auto',
+                '&::-webkit-scrollbar, & *::-webkit-scrollbar': {
+                  width: '10px',
+                  height: '10px',
+                  backgroundColor: mode === 'dark' ? '#1e1e1e' : '#f5f5f5',
+                },
+                '&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb': {
+                  borderRadius: 8,
+                  backgroundColor: mode === 'dark' ? '#4f5b62' : '#bdbdbd',
+                  minHeight: 24,
+                  border: mode === 'dark' ? '2px solid #1e1e1e' : '2px solid #f5f5f5',
+                },
+                '&::-webkit-scrollbar-thumb:focus, & *::-webkit-scrollbar-thumb:focus': {
+                  backgroundColor: mode === 'dark' ? '#637381' : '#9e9e9e',
+                },
+                '&::-webkit-scrollbar-thumb:active, & *::-webkit-scrollbar-thumb:active': {
+                  backgroundColor: mode === 'dark' ? '#637381' : '#9e9e9e',
+                },
+                '&::-webkit-scrollbar-thumb:hover, & *::-webkit-scrollbar-thumb:hover': {
+                  backgroundColor: mode === 'dark' ? '#637381' : '#9e9e9e',
+                },
+                '&::-webkit-scrollbar-corner, & *::-webkit-scrollbar-corner': {
+                  backgroundColor: mode === 'dark' ? '#1e1e1e' : '#f5f5f5',
+                },
+              },
+            },
+          },
           MuiPaper: {
             styleOverrides: {
               root: {
@@ -282,31 +312,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
               },
             },
           },
-          MuiCssBaseline: {
-            styleOverrides: {
-              body: {
-                transition: 'background-color 0.3s ease',
-                ...(mode === 'dark' && {
-                  backgroundColor: '#121212',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                }),
-                '*::-webkit-scrollbar': {
-                  width: '8px',
-                  height: '8px',
-                },
-                '*::-webkit-scrollbar-track': {
-                  backgroundColor: mode === 'dark' ? '#1e1e1e' : '#f5f5f5',
-                },
-                '*::-webkit-scrollbar-thumb': {
-                  backgroundColor: mode === 'dark' ? '#555' : '#ccc',
-                  borderRadius: '4px',
-                },
-                '*::-webkit-scrollbar-thumb:hover': {
-                  backgroundColor: mode === 'dark' ? '#777' : '#aaa',
-                },
-              },
-            },
-          },
         },
       }),
     [mode]
@@ -323,7 +328,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   return (
     <ThemeContext.Provider value={contextValue}>
-      <MuiThemeProvider theme={theme}>{children}</MuiThemeProvider>
+      <MuiThemeProvider theme={theme}>
+        <CssBaseline />
+        {children}
+      </MuiThemeProvider>
     </ThemeContext.Provider>
   );
 };

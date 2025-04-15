@@ -38,6 +38,18 @@ const INPUT_STYLES = {
   boxSizing: 'border-box' as const
 };
 
+// Стили для скрытия стрелок увеличения/уменьшения в числовых полях
+const NUMBER_INPUT_STYLES = {
+  ...INPUT_STYLES,
+  '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': {
+    '-webkit-appearance': 'none',
+    margin: 0,
+  },
+  '&[type=number]': {
+    '-moz-appearance': 'textfield',
+  },
+};
+
 export interface Column {
   id: string;
   label: string;
@@ -128,7 +140,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
       if (dateColumn) {
         setFormData({ date: getCurrentDate() });
       } else {
-        setFormData({});
+      setFormData({});
       }
     }
     setOpen(true);
@@ -291,7 +303,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
         }}
         inputProps={{
           min: column.type === 'number' && column.min !== undefined ? column.min : undefined,
-          style: INPUT_STYLES
+          style: column.type === 'number' ? NUMBER_INPUT_STYLES : INPUT_STYLES
         }}
         sx={{ 
           mb: 2,
@@ -300,7 +312,16 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
           },
           '& input': {
             height: '100%',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            ...(column.type === 'number' && {
+              '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': {
+                '-webkit-appearance': 'none',
+                margin: 0,
+              },
+              '&[type=number]': {
+                '-moz-appearance': 'textfield',
+              },
+            })
           }
         }}
       />
@@ -414,7 +435,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
           <Button 
             onClick={handleSubmit} 
             color="primary" 
-            variant="contained" 
+            variant="contained"
             disabled={loading}
           >
             {loading ? <CircularProgress size={24} /> : (editingId ? 'Save' : 'Add')}
