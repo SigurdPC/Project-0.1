@@ -19,13 +19,15 @@ interface PDFExportButtonProps {
   getFilteredEventsForDate: (date: string) => DPHours[];
   getFilteredLocationsForDate: (date: string) => string[];
   fileName?: string;
+  isNightMode: boolean;
 }
 
 const PDFExportButton: React.FC<PDFExportButtonProps> = ({
   paginatedDates,
   getFilteredEventsForDate,
   getFilteredLocationsForDate,
-  fileName = 'dp-hours-history'
+  fileName = 'dp-hours-history',
+  isNightMode
 }) => {
   // Состояние для диалога выбора дат
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -340,15 +342,16 @@ const PDFExportButton: React.FC<PDFExportButtonProps> = ({
         variant="contained"
         startIcon={<PictureAsPdfIcon />}
         onClick={handleOpenDialog}
-        sx={{
-          bgcolor: 'primary.main',
-          color: 'white',
+        sx={{ 
+          borderRadius: '4px',
+          textTransform: 'uppercase',
+          fontWeight: 500,
+          py: 1,
+          bgcolor: isNightMode ? '#2c3e50' : 'primary.main',
+          color: isNightMode ? 'rgba(255, 255, 255, 0.85)' : 'white',
           '&:hover': {
-            bgcolor: 'primary.dark',
-          },
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          borderRadius: '8px',
-          px: 2,
+            bgcolor: isNightMode ? '#34495e' : 'primary.dark',
+          }
         }}
       >
         Export to PDF

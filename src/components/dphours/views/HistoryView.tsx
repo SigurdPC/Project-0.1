@@ -6,6 +6,7 @@ import HistoryItem from '../components/HistoryItem';
 import LocationCard from '../components/LocationCard';
 import PDFExportButton from '../components/PDFExportButton';
 import { GroupedEvents } from '../hooks/useEventGroups';
+import { useTheme } from '../../../providers/ThemeProvider';
 
 interface HistoryViewProps {
   searchQuery: string;
@@ -42,6 +43,8 @@ const HistoryView: React.FC<HistoryViewProps> = ({
   onEditLocation,
   onDeleteLocationEvents
 }) => {
+  const { isNightMode } = useTheme();
+
   // Function to render history content for a date
   const renderHistoryByDate = (date: string) => {
     const locationsForDate = getFilteredLocationsForDate(date);
@@ -144,6 +147,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({
               paginatedDates={filteredDates}
               getFilteredEventsForDate={getFilteredEventsForDate}
               getFilteredLocationsForDate={getFilteredLocationsForDate}
+              isNightMode={isNightMode}
             />
           )}
         </Box>
