@@ -251,20 +251,27 @@ const PDFExportButton: React.FC<PDFExportButtonProps> = ({
         if (groupIndex > 0) {
           currentY += 2; // уменьшено с 3 до 2
         }
+        
+        // Дата на отдельной строке по центру как заголовок
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);  // увеличенный размер для заголовка
+        pdf.setTextColor(dateColor[0], dateColor[1], dateColor[2]);
+        pdf.text(`Date: ${date}`, pageWidth / 2, currentY, { align: 'center' });
+        
+        // Тонкая линия под датой
+        pdf.setDrawColor(220, 220, 220);
+        pdf.line(startX, currentY + 1, startX + availableWidth, currentY + 1);
+        
+        currentY += 5; // отступ после даты
       }
       
-      // Дата и локация в одной строке
+      // Локация всегда на отдельной строке
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(9);
-      pdf.setTextColor(dateColor[0], dateColor[1], dateColor[2]);
-      pdf.text(`Date: ${date}`, startX + cellPadding, currentY);
-      
-      // Локация справа от даты
-      pdf.setFontSize(9);
       pdf.setTextColor(locationColor[0], locationColor[1], locationColor[2]);
-      pdf.text(`Location: ${location}`, startX + availableWidth / 2, currentY);
+      pdf.text(`Location: ${location}`, startX + cellPadding, currentY);
       
-      // Тонкая линия под датой и локацией
+      // Тонкая линия под локацией
       pdf.setDrawColor(220, 220, 220);
       pdf.line(startX, currentY + 1, startX + availableWidth, currentY + 1);
       
@@ -277,17 +284,28 @@ const PDFExportButton: React.FC<PDFExportButtonProps> = ({
           pdf.addPage();
           currentY = 20;
           
-          // Повторяем заголовок даты и локации на новой странице без серого фона
+          // Повторяем заголовок даты и локации на новой странице, но локация под датой
           
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(9);
-          pdf.setTextColor(dateColor[0], dateColor[1], dateColor[2]);
-          pdf.text(`Date: ${date}`, startX + cellPadding, currentY);
           
+          // На новой странице всегда показываем дату по центру как заголовок
+          pdf.setFontSize(10);  // увеличенный размер для заголовка
+          pdf.setTextColor(dateColor[0], dateColor[1], dateColor[2]);
+          pdf.text(`Date: ${date}`, pageWidth / 2, currentY, { align: 'center' });
+          
+          // Тонкая линия под датой
+          pdf.setDrawColor(220, 220, 220);
+          pdf.line(startX, currentY + 1, startX + availableWidth, currentY + 1);
+          
+          currentY += 5; // отступ после даты
+          
+          // Локация всегда на отдельной строке
           pdf.setFontSize(9);
           pdf.setTextColor(locationColor[0], locationColor[1], locationColor[2]);
-          pdf.text(`Location: ${location}`, startX + availableWidth / 2, currentY);
+          pdf.text(`Location: ${location}`, startX + cellPadding, currentY);
           
+          // Тонкая линия под локацией
           pdf.setDrawColor(220, 220, 220);
           pdf.line(startX, currentY + 1, startX + availableWidth, currentY + 1);
           
@@ -311,15 +329,6 @@ const PDFExportButton: React.FC<PDFExportButtonProps> = ({
       // Дополнительный отступ после группы
       currentY += 2; // уменьшено с 3 до 2
     });
-    
-    // Добавляем генерированную дату в нижний правый угол каждой страницы
-    const totalPages = pdf.internal.pages.length - 1;
-    for (let i = 1; i <= totalPages; i++) {
-      pdf.setPage(i);
-      pdf.setFontSize(8);
-      pdf.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      pdf.text(`Generated: ${generatedDate}`, pageWidth - rightMargin, pageHeight - 5, { align: 'right' });
-    }
     
     // Save the PDF
     pdf.save(`${fileName}.pdf`);
