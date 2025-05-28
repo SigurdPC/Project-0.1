@@ -88,8 +88,14 @@ export const useEventFilters = (initialEvents: DPHours[] = []): EventFiltersHook
     });
   }, [searchQuery, getDatesWithEvents]);
 
-  // Pagination helper
+  // Pagination helper - ensure items are always sorted by dates in descending order
   const getPaginatedItems = useCallback(<T>(items: T[], page: number, rowsPerPage: number): T[] => {
+    // For string dates, ensure they're always sorted from newest to oldest (descending)
+    if (items.length > 0 && typeof items[0] === 'string') {
+      // This is intended for date strings in YYYY-MM-DD format
+      items = [...items].sort((a, b) => String(b).localeCompare(String(a)));
+    }
+    
     const startIndex = (page - 1) * rowsPerPage;
     return items.slice(startIndex, startIndex + rowsPerPage);
   }, []);

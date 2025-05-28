@@ -2,7 +2,7 @@ import axios from 'axios';
 import { DailyROB } from '../types';
 
 // Define the API base URL
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://192.168.93.99:5000/api';
 
 // Create axios instance with base URL
 const api = axios.create({

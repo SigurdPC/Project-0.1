@@ -10,6 +10,16 @@ export const formatDate = (dateStr: string): string => {
 };
 
 /**
+ * Форматирует время в удобочитаемый формат
+ * @param timeStr Строка времени в формате HH:mm
+ * @returns Отформатированная строка времени
+ */
+export const formatTime = (timeStr: string): string => {
+  if (!timeStr) return "";
+  return timeStr;
+};
+
+/**
  * Parses a date from user input (prioritizes the DD/MM/YYYY format)
  */
 export const parseUserDateInput = (dateStr: string): string => {

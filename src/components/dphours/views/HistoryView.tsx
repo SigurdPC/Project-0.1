@@ -4,7 +4,8 @@ import { DPHours } from '../types';
 import SearchBar from '../components/SearchBar';
 import HistoryItem from '../components/HistoryItem';
 import LocationCard from '../components/LocationCard';
-import PDFExportButton from '../components/PDFExportButton';
+import PrintButton from '../components/PrintButton';
+import ExcelExportButton from '../components/ExcelExportButton';
 import { GroupedEvents } from '../hooks/useEventGroups';
 import { useTheme } from '../../../providers/ThemeProvider';
 
@@ -141,14 +142,23 @@ const HistoryView: React.FC<HistoryViewProps> = ({
   return (
     <Paper sx={{ p: 3, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
+        <Box sx={{ display: 'flex', gap: 2 }}>
           {filteredDates.length > 0 && (
-            <PDFExportButton
-              paginatedDates={filteredDates}
-              getFilteredEventsForDate={getFilteredEventsForDate}
-              getFilteredLocationsForDate={getFilteredLocationsForDate}
-              isNightMode={isNightMode}
-            />
+            <>
+              <PrintButton
+                paginatedDates={filteredDates}
+                getFilteredEventsForDate={getFilteredEventsForDate}
+                getFilteredLocationsForDate={getFilteredLocationsForDate}
+                isNightMode={isNightMode}
+              />
+              <ExcelExportButton 
+                paginatedDates={filteredDates}
+                getFilteredEventsForDate={getFilteredEventsForDate}
+                getFilteredLocationsForDate={getFilteredLocationsForDate}
+                fileName="dp-hours-export"
+                isNightMode={isNightMode}
+              />
+            </>
           )}
         </Box>
         <SearchBar

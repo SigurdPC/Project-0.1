@@ -69,14 +69,8 @@ const LocationCard: React.FC<LocationCardProps> = ({
     onEdit();
   };
   
-  // Очищаем информацию о времени из названия локации
-  let locationDisplay = location;
-  
-  // Если в строке локации есть время, извлекаем только номер локации
-  const locationParts = location.match(/(\d+)(\s+\d+:\d+\s+-\s+\d+:\d+)?/);
-  if (locationParts && locationParts.length >= 2) {
-    locationDisplay = `Location: ${locationParts[1]}`;
-  }
+  // Используем полное значение локации для отображения
+  const locationDisplay = `Location: ${location}`;
   
   return (
     <Paper sx={{ mb: 3, overflow: 'hidden' }}>
