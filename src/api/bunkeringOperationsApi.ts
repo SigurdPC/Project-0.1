@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { BunkeringOperation } from '../types';
 
-// Define the API base URL
-const API_URL = 'http://192.168.93.99:5000/api';
+// Define the API base URL - using relative path for Vite proxy
+const API_URL = '/api';
 
 // Create axios instance with base URL
 const api = axios.create({

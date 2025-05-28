@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { DPHours } from '../types';
 
-// Define the API base URL
-const API_URL = 'http://192.168.93.99:5000/api';
+// Define the API base URL - using relative path for Vite proxy
+const API_URL = '/api';
 
 // Define the DPHours interface to match the backend model
 export interface DPHours {
