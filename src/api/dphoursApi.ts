@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { DPHours } from '../types';
+import API_BASE_URL from './config';
 
 // Define the API base URL
-const API_URL = 'http://192.168.93.99:5000/api';
+const API_URL = API_BASE_URL;
 
 // Define the DPHours interface to match the backend model
 export interface DPHours {

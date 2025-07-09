@@ -9,15 +9,10 @@ export default defineConfig({
     port: 80,
     proxy: {
       '/api': {
-        target: 'http://192.168.93.99:5000',
+        target: 'http://localhost:5000',
         changeOrigin: true
       }
-    },
-    hmr: {
-      clientPort: 80,
-      host: 'operational.log'
-    },
-    allowedHosts: ['operational.log', '192.168.93.99']
+    }
   },
   preview: {
     host: '0.0.0.0',
