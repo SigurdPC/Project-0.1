@@ -2,13 +2,16 @@ import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { 
   Paper, Typography, Box, Table, TableBody, TableCell, 
   TableContainer, TableHead, TableRow, Divider, CircularProgress,
-  useTheme, alpha
+  useTheme, alpha, Button, IconButton, Tooltip
 } from '@mui/material';
 import { 
-  WaterOutlined as WaterIcon
+  WaterOutlined as WaterIcon,
+  Print as PrintIcon,
+  FileDownload as FileDownloadIcon
 } from '@mui/icons-material';
 import { DPTimeOperation, TimeCalculationResult } from '../types';
 import { formatDate } from '../utils';
+import * as XLSX from 'xlsx';
 
 interface DPTimeResultsProps {
   results: TimeCalculationResult[];
@@ -87,6 +90,7 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
   // State for infinite scrolling
   const [visibleResultsCount, setVisibleResultsCount] = useState<number>(10);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
 
@@ -451,6 +455,250 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
     };
   }, [handleIntersect, visibleResults]);
 
+  // Обработчик печати
+  const handlePrint = useCallback(() => {
+    // Устанавливаем режим печати
+    setIsPrinting(true);
+    
+    // Создадим временную скрытую таблицу только для печати
+    const tempTable = document.createElement('div');
+    tempTable.id = 'print-only-table';
+    tempTable.style.display = 'none';
+    tempTable.style.position = 'absolute';
+    tempTable.style.left = '0';
+    tempTable.style.top = '0';
+    tempTable.style.width = '100%';
+    
+    // Создаем HTML таблицу для печати
+    let tableHtml = `
+      <table border="1" cellspacing="0" cellpadding="10" style="width:100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background-color: #f2f2f2;">
+            <th style="width: 20%; text-align: left; padding: 10px; border: 1px solid #ddd;">Operation Dates</th>
+            <th style="width: 60%; text-align: left; padding: 10px; border: 1px solid #ddd;">Shifts</th>
+            <th style="width: 20%; text-align: right; padding: 10px; border: 1px solid #ddd;">Total Hours</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    // Добавляем строки данных
+    groupedResults.forEach(result => {
+      const isMultiDay = result.startDate !== result.endDate;
+      const isShortTime = isLessThanTwoHours(result.totalMinutes);
+      
+      let dateText = isMultiDay ? 
+        `${formatDate(result.startDate)} - ${formatDate(result.endDate)}` : 
+        formatDate(result.startDate);
+      
+      // Формируем HTML для смен
+      let shiftsHtml = '';
+      result.shifts.forEach(shift => {
+        shiftsHtml += `<span style="display: inline-block; margin: 0 4px 4px 0; padding: 2px 8px; border-radius: 16px; 
+          font-size: 12px; font-weight: bold; border: 1px solid #1976d2; color: #1976d2; 
+          background-color: rgba(25, 118, 210, 0.05);">${shift.shiftStart} - ${shift.shiftEnd}</span>`;
+      });
+      
+      // Стиль для отображения времени
+      const timeStyle = isShortTime ? 
+        `font-weight: bold; color: #ed6c02; padding: 3px 8px; border-radius: 4px; 
+         background-color: rgba(237, 108, 2, 0.1); border: 1px solid rgba(237, 108, 2, 0.3);` :
+        `font-weight: bold; color: #1976d2; padding: 3px 8px; border-radius: 4px; 
+         background-color: rgba(25, 118, 210, 0.1); border: 1px solid rgba(25, 118, 210, 0.3);`;
+      
+      // Добавляем строку в таблицу
+      tableHtml += `
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">${dateText}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: left;">${shiftsHtml}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">
+            <span style="${timeStyle}">${formatHoursAndMinutes(result.totalMinutes)}</span>
+          </td>
+        </tr>
+      `;
+    });
+    
+    // Закрываем таблицу
+    tableHtml += `
+        </tbody>
+      </table>
+    `;
+    
+    // Добавляем таблицу в DOM
+    tempTable.innerHTML = tableHtml;
+    document.body.appendChild(tempTable);
+    
+    // Добавляем стили для печати
+    const style = document.createElement('style');
+    style.id = 'temp-print-styles';
+    style.innerHTML = `
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 0.5cm;
+        }
+        
+        body * {
+          visibility: hidden;
+        }
+        
+        #print-only-table, #print-only-table * {
+          visibility: visible !important;
+        }
+        
+        #print-only-table {
+          display: block !important;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Печатаем
+    setTimeout(() => {
+      window.print();
+      
+      // Удаляем временные элементы
+      setTimeout(() => {
+        setIsPrinting(false);
+        if (tempTable) document.body.removeChild(tempTable);
+        if (style) document.head.removeChild(style);
+      }, 500);
+    }, 100);
+  }, [groupedResults, formatDate]);
+
+  // Убедимся, что все необходимые элементы отображаются при печати
+  useEffect(() => {
+    if (isPrinting) {
+      // При печати загружаем все результаты
+      setVisibleResultsCount(groupedResults.length);
+    }
+  }, [isPrinting, groupedResults.length]);
+
+  // Результаты для отображения
+  const resultsToDisplay = useMemo(() => {
+    // В режиме печати показываем все результаты
+    if (isPrinting) {
+      return groupedResults;
+    }
+    // В обычном режиме показываем только видимые
+    return visibleResults;
+  }, [groupedResults, visibleResults, isPrinting]);
+
+  // Обработчик экспорта в Excel
+  const handleExportExcel = useCallback(() => {
+    // Подготовим заголовки для Excel
+    const headers = [
+      { header: 'Operation Dates', key: 'date', width: 20 },
+      { header: 'Shifts', key: 'shifts', width: 60 },
+      { header: 'Total Hours', key: 'total', width: 20 }
+    ];
+    
+    // Подготовим данные в том же формате, что и для печати
+    const excelData = [];
+    
+    // Сначала добавим заголовок (как в печатной версии)
+    excelData.push(['DP Time Calculation Results', '', '']);
+    excelData.push(['', '', '']);  // пустая строка для разделения
+    
+    // Добавим строку с заголовками
+    excelData.push(['Operation Dates', 'Shifts', 'Total Hours']);
+    
+    // Добавим данные
+    groupedResults.forEach(result => {
+      const isMultiDay = result.startDate !== result.endDate;
+      const isShortTime = isLessThanTwoHours(result.totalMinutes);
+      
+      // Форматируем даты так же, как в печатной версии
+      const dateText = isMultiDay 
+        ? `${formatDate(result.startDate)} - ${formatDate(result.endDate)}` 
+        : formatDate(result.startDate);
+      
+      // Собираем смены через запятую, как в печатной версии
+      const shiftsText = result.shifts.map(shift => 
+        `${shift.shiftStart} - ${shift.shiftEnd}`
+      ).join(', ');
+      
+      // Форматируем время работы
+      const totalTime = formatHoursAndMinutes(result.totalMinutes);
+      
+      // Добавляем строку данных
+      excelData.push([dateText, shiftsText, totalTime]);
+    });
+    
+    // Создаем рабочую книгу и лист
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+    
+    // Устанавливаем ширину столбцов
+    const colWidths = [
+      { wch: 25 },  // Operation Dates
+      { wch: 60 },  // Shifts
+      { wch: 15 }   // Total Hours
+    ];
+    
+    worksheet['!cols'] = colWidths;
+    
+    // Применяем стили для ячеек (аналогичные стилям в печатной версии)
+    // Отметим заголовок
+    worksheet['!merges'] = [
+      // Объединяем ячейки для заголовка (A1:C1)
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }
+    ];
+    
+    // Добавляем границы и центрирование
+    if (!worksheet['!rows']) worksheet['!rows'] = [];
+    
+    // Настраиваем стили для заголовка (центрирование)
+    if (!worksheet.A1) worksheet.A1 = { v: 'DP Time Calculation Results' };
+    worksheet.A1.s = {
+      alignment: { horizontal: 'center', vertical: 'center' },
+      font: { bold: true, sz: 14 }
+    };
+    
+    // Настраиваем границы для заголовков таблицы (строка 3)
+    ['A3', 'B3', 'C3'].forEach(cell => {
+      if (!worksheet[cell]) worksheet[cell] = {};
+      worksheet[cell].s = {
+        border: {
+          top: { style: 'thin' },
+          bottom: { style: 'thin' },
+          left: { style: 'thin' },
+          right: { style: 'thin' }
+        },
+        font: { bold: true },
+        fill: { fgColor: { rgb: 'F2F2F2' } }
+      };
+    });
+    
+    // Добавляем границы для всех ячеек с данными
+    for (let row = 4; row < 4 + groupedResults.length; row++) {
+      ['A', 'B', 'C'].forEach((col, index) => {
+        const cellRef = `${col}${row}`;
+        if (!worksheet[cellRef]) worksheet[cellRef] = {};
+        worksheet[cellRef].s = {
+          border: {
+            top: { style: 'thin' },
+            bottom: { style: 'thin' },
+            left: { style: 'thin' },
+            right: { style: 'thin' }
+          },
+          // Правое выравнивание для столбца Total Hours
+          alignment: index === 2 ? { horizontal: 'right' } : {}
+        };
+      });
+    }
+    
+    // Добавляем лист в книгу
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'DP Time Results');
+    
+    // Экспортируем Excel файл
+    XLSX.writeFile(workbook, 'dp-time-results.xlsx');
+  }, [groupedResults, formatDate]);
+
   // Maritime theme styles
   const maritimeStyles = {
     tableContainer: {
@@ -566,14 +814,61 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ p: 3, pb: 1 }}>
-        Calculation Results
-      </Typography>
+      <Box sx={{ p: 3, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h5">
+          Calculation Results
+        </Typography>
+        {groupedResults.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Tooltip title="Print Results">
+              <IconButton 
+                color="primary" 
+                size="large"
+                onClick={handlePrint}
+                sx={{
+                  color: theme.palette.primary.main,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  },
+                  '@media print': {
+                    display: 'none'
+                  }
+                }}
+                className="print-hide"
+              >
+                <PrintIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Export to Excel">
+              <IconButton 
+                color="primary" 
+                size="large"
+                onClick={handleExportExcel}
+                sx={{
+                  color: theme.palette.primary.main,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  }
+                }}
+              >
+                <FileDownloadIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
+      </Box>
       
       {/* Results */}
       {groupedResults.length > 0 ? (
-        <Box sx={maritimeStyles.tableContainer}>
-          <TableContainer>
+        <Box id="calculation-results" sx={{
+          ...maritimeStyles.tableContainer,
+          // Снимаем ограничение высоты при печати
+          maxHeight: isPrinting ? 'none' : '500px', 
+          overflow: isPrinting ? 'visible' : 'auto'
+        }}>
+          <TableContainer sx={{ maxHeight: isPrinting ? 'none' : undefined, overflow: isPrinting ? 'visible' : undefined }}>
             <Table size="small">
               <TableHead sx={maritimeStyles.tableHead}>
                 <TableRow>
@@ -595,9 +890,9 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {visibleResults.map((result, index) => {
+                {resultsToDisplay.map((result, index) => {
                   // Determine if this is the last item
-                  const isLastItem = index === visibleResults.length - 1;
+                  const isLastItem = index === resultsToDisplay.length - 1;
                   
                   // Check if operation is a single day or spans multiple days
                   const isMultiDay = result.startDate !== result.endDate;
@@ -607,7 +902,7 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
                   
                   return (
                     <TableRow 
-                      key={result.operationId}
+                      key={`${result.operationId}-${index}`}
                       sx={{
                         ...maritimeStyles.tableRow,
                         '&:last-child td, &:last-child th': isLastItem ? { border: 0 } : {}
@@ -627,13 +922,17 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
                           <span 
                             key={`${shift.shiftId}-${idx}`}
                             style={maritimeStyles.shiftChip}
+                            className="shift-chip"
                           >
                             {shift.shiftStart} - {shift.shiftEnd}
                           </span>
                         ))}
                       </TableCell>
                       <TableCell align="right" sx={maritimeStyles.tableCell}>
-                        <span style={isShortTime ? maritimeStyles.totalTimeLessThanTwoHours : maritimeStyles.totalTime}>
+                        <span 
+                          style={isShortTime ? maritimeStyles.totalTimeLessThanTwoHours : maritimeStyles.totalTime}
+                          className={isShortTime ? "short-time" : "total-time"}
+                        >
                           {formatHoursAndMinutes(result.totalMinutes)}
                         </span>
                       </TableCell>
@@ -644,23 +943,24 @@ const DPTimeResults: React.FC<DPTimeResultsProps> = ({
             </Table>
           </TableContainer>
           
-          {/* Element for tracking scrolling */}
-          {visibleResults.length > 0 && (
+          {/* Element for tracking scrolling - скрываем при печати */}
+          {visibleResults.length > 0 && !isPrinting && (
             <Box ref={lastElementRef} sx={{ height: 5, width: '100%' }} />
           )}
           
-          {/* Loading indicator */}
-          {isLoading && (
+          {/* Loading indicator - скрываем при печати */}
+          {isLoading && !isPrinting && (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
               <CircularProgress size={30} color="primary" />
             </Box>
           )}
           
-          {/* End of list message */}
-          {!isLoading && visibleResultsCount >= groupedResults.length && groupedResults.length > 0 && (
+          {/* End of list message - скрываем при печати */}
+          {!isLoading && visibleResultsCount >= groupedResults.length && groupedResults.length > 0 && !isPrinting && (
             <Typography 
               variant="body2" 
               sx={maritimeStyles.endMessage}
+              className="print-hide"
             >
               End of operations list
             </Typography>

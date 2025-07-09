@@ -47,6 +47,8 @@ const AppDatePicker: React.FC<AppDatePickerProps> = ({
       value={dayjsValue}
       onChange={handleChange}
       format="DD/MM/YYYY"
+      views={['year', 'month', 'day']}
+      openTo="day"
       slotProps={{
         textField: {
           required,
