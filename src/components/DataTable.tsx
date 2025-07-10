@@ -298,6 +298,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
         fullWidth
         value={formData[column.id] || ''}
         onChange={(e) => handleChange(column.id, e.target.value)}
+        autoComplete="off"
         InputLabelProps={{
           shrink: true,
         }}
@@ -344,6 +345,7 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
           value={searchQuery}
           onChange={handleSearchChange}
           size="small"
+          autoComplete="off"
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">

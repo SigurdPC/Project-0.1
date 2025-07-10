@@ -220,6 +220,7 @@ const DataTableWithSearch = ({ columns, data, onAdd, onEdit, onDelete, title }: 
         fullWidth
         value={formData[column.id] || ''}
         onChange={(e) => handleChange(column.id, e.target.value)}
+        autoComplete="off"
         InputLabelProps={{
           shrink: true,
         }}
@@ -242,6 +243,7 @@ const DataTableWithSearch = ({ columns, data, onAdd, onEdit, onDelete, title }: 
           value={searchQuery}
           onChange={handleSearchChange}
           size="small"
+          autoComplete="off"
           sx={{ 
             width: '250px',
             '& .MuiOutlinedInput-root': {

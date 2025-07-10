@@ -38,4 +38,14 @@ export interface DPHours {
   location: string;
   time: string;
   event: string;
+}
+
+export interface VesselCertificate {
+  id: string;
+  name: string;
+  issuedBy: string;
+  issueDate: string;
+  expirationDate: string;
+  fileName?: string;
+  filePath?: string;
 } 

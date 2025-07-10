@@ -27,6 +27,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         value={searchQuery}
         onChange={onSearchChange}
         size="small"
+        autoComplete="off"
         sx={{ 
           width,
           '& .MuiOutlinedInput-root': {

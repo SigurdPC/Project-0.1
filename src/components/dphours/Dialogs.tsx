@@ -110,6 +110,7 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
               onChange={(e) => onBaseChange('location', e.target.value)}
               fullWidth
               placeholder="Enter location"
+              autoComplete="off"
               InputLabelProps={{ shrink: true }}
               inputProps={{ style: INPUT_STYLES }}
               sx={{ 
@@ -158,6 +159,7 @@ export const ComplexAddDialog: React.FC<ComplexAddDialogProps> = ({
                   value={operation.time || ''}
                   onChange={(e) => onOperationChange(operation.id, 'time', e.target.value)}
                   fullWidth
+                  autoComplete="off"
                   InputLabelProps={{ shrink: true }}
                   inputProps={{ style: INPUT_STYLES }}
                   sx={{ 
@@ -324,6 +326,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                   value={locationEditData.newLocation}
                   onChange={(e) => onLocationNameChange(e.target.value)}
                   fullWidth
+                  autoComplete="off"
                   InputLabelProps={{ shrink: true }}
                   inputProps={{ style: INPUT_STYLES }}
                   sx={{ 
@@ -360,6 +363,7 @@ export const EditLocationDialog: React.FC<EditLocationDialogProps> = ({
                           value={event.time}
                           onChange={(e) => onLocationOperationChange(index, 'time', e.target.value)}
                           fullWidth
+                          autoComplete="off"
                           InputLabelProps={{ shrink: true }}
                           inputProps={{ style: INPUT_STYLES }}
                           sx={{ 
@@ -506,6 +510,7 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
                 value={editFormData.location}
                 onChange={(e) => onFormChange('location', e.target.value)}
                 fullWidth
+                autoComplete="off"
                 InputLabelProps={{ shrink: true }}
                 inputProps={{ style: INPUT_STYLES }}
                 sx={{ 
@@ -526,6 +531,7 @@ export const EditOperationDialog: React.FC<EditOperationDialogProps> = ({
                 value={editFormData.time}
                 onChange={(e) => onFormChange('time', e.target.value)}
                 fullWidth
+                autoComplete="off"
                 InputLabelProps={{ shrink: true }}
                 inputProps={{ style: INPUT_STYLES }}
                 sx={{ 

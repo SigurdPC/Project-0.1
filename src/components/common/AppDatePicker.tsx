@@ -58,6 +58,7 @@ const AppDatePicker: React.FC<AppDatePickerProps> = ({
           fullWidth,
           disabled,
           size: "small",
+          autoComplete: "off",
           inputProps,
           sx: {
             '& .MuiInputBase-root': {

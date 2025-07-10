@@ -159,6 +159,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
             placeholder="HH:MM"
             size="small"
             type="time"
+            autoComplete="off"
             sx={{ ...maritimeStyles.timeField, width: 200, mr: 2 }}
             inputProps={{ step: 300 }}
           />
@@ -169,6 +170,7 @@ const ShiftInput: React.FC<ShiftInputProps> = ({
             placeholder="HH:MM"
             size="small"
             type="time"
+            autoComplete="off"
             sx={{ ...maritimeStyles.timeField, width: 200, mr: 2 }}
             inputProps={{ step: 300 }}
           />

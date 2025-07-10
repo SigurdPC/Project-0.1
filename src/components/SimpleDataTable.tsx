@@ -145,6 +145,7 @@ const SimpleDataTable = ({ columns, data, onAdd, onEdit, onDelete }: SimpleDataT
         fullWidth
         value={formData[column.id] || ''}
         onChange={(e) => handleChange(column.id, e.target.value)}
+        autoComplete="off"
         InputLabelProps={{
           shrink: true,
         }}
