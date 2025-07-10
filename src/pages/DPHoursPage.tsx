@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Container, Typography, Box, Paper, 
   Tabs, Tab, 
-  Alert, CircularProgress, Snackbar
+  Alert, CircularProgress, Snackbar, Button
 } from '@mui/material';
 import { 
   Today as TodayIcon,
   MenuBook as MenuBookIcon,
-  AccessTime as AccessTimeIcon
+  AccessTime as AccessTimeIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { 
   ComplexAddDialog, 
@@ -56,6 +58,7 @@ interface DateRange {
 }
 
 const DPHoursPage = () => {
+  const navigate = useNavigate();
   // Get night mode state
   const { isNightMode } = useTheme();
   
@@ -1100,10 +1103,25 @@ const DPHoursPage = () => {
 
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 500 }}>
-        DP Hours
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Button
+          onClick={() => navigate('/')}
+          startIcon={<ArrowBackIcon />}
+          variant="contained"
+          sx={{ 
+            borderRadius: '4px',
+            textTransform: 'uppercase',
+            fontWeight: 500,
+            py: 1,
+            px: 2
+          }}
+        >
+          Home
+        </Button>
+        <Typography variant="h5" sx={{ fontWeight: 500, flexGrow: 1, textAlign: 'center' }}>
+          DP Hours
+        </Typography>
+        <Box sx={{ width: '120px' }} /> {/* Spacer to center the title */}
       </Box>
       
       {/* Loading indicator */}

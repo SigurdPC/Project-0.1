@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import CssBaseline from '@mui/material/CssBaseline';
-import Navigation from './components/Navigation';
+import HomePage from './pages/HomePage';
 import DPHoursPage from './pages/DPHoursPage';
 import BunkeringOperation from './pages/BunkeringOperation';
 import DailyEvents from './pages/DailyEvents';
@@ -16,14 +16,13 @@ function App() {
       <CssBaseline />
       <DatePickerProvider>
         <Router>
-          <Navigation />
           <Routes>
             <Route path="/bunkering" element={<BunkeringOperation />} />
             <Route path="/daily-events" element={<DailyEvents />} />
             <Route path="/daily-rob" element={<DailyROB />} />
             <Route path="/dphours" element={<DPHoursPage />} />
             <Route path="/dptime" element={<DPTimePage />} />
-            <Route path="/" element={<DPHoursPage />} />
+            <Route path="/" element={<HomePage />} />
           </Routes>
         </Router>
       </DatePickerProvider>

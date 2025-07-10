@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Container, Typography, Box, Paper, Alert, CircularProgress, Snackbar,
-  useTheme as useMuiTheme, alpha
+  useTheme as useMuiTheme, alpha, Button
 } from '@mui/material';
 import { 
   SailingOutlined, 
   WavesOutlined, 
   AnchorOutlined, 
-  WaterOutlined
+  WaterOutlined,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import DPTimeSettings from '../components/dphours/views/DPTimeSettings';
 import DPTimeResults from '../components/dphours/views/DPTimeResults';
@@ -29,6 +31,7 @@ interface SnackbarState {
 }
 
 export const DPTimePage = () => {
+  const navigate = useNavigate();
   const muiTheme = useMuiTheme();
   const { isNightMode } = useTheme();
   const { data, loading, error } = useDataManagement();
@@ -248,10 +251,25 @@ export const DPTimePage = () => {
   
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 500 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Button
+          onClick={() => navigate('/')}
+          startIcon={<ArrowBackIcon />}
+          variant="contained"
+          sx={{ 
+            borderRadius: '4px',
+            textTransform: 'uppercase',
+            fontWeight: 500,
+            py: 1,
+            px: 2
+          }}
+        >
+          Home
+        </Button>
+        <Typography variant="h5" sx={{ fontWeight: 500, flexGrow: 1, textAlign: 'center' }}>
           DP Time Calculator
         </Typography>
+        <Box sx={{ width: '120px' }} /> {/* Spacer to center the title */}
       </Box>
       
       <Box sx={{ 

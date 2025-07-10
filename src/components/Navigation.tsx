@@ -28,10 +28,34 @@ const Navigation = () => {
     <AppBar position="static">
       <Container>
         <Toolbar>
-          <Typography variant="h5" component="div" sx={{ flexGrow: 1, fontWeight: 500 }}>
+          <Typography 
+            variant="h5" 
+            component={RouterLink} 
+            to="/"
+            sx={{ 
+              flexGrow: 1, 
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: 'inherit',
+              cursor: 'pointer'
+            }}
+          >
             Operation Log
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button 
+              component={RouterLink} 
+              to="/"
+              color="inherit"
+              sx={{ 
+                fontWeight: isActive('/') ? 'bold' : 'normal',
+                borderBottom: isActive('/') ? '2px solid white' : 'none',
+                borderRadius: 0,
+                pb: 0.5
+              }}
+            >
+              Home
+            </Button>
             <Button 
               component={RouterLink} 
               to="/bunkering"
@@ -76,8 +100,8 @@ const Navigation = () => {
               to="/dphours"
               color="inherit"
               sx={{ 
-                fontWeight: isActive('/dphours') || isActive('/') ? 'bold' : 'normal',
-                borderBottom: (isActive('/dphours') || isActive('/')) ? '2px solid white' : 'none',
+                fontWeight: isActive('/dphours') ? 'bold' : 'normal',
+                borderBottom: isActive('/dphours') ? '2px solid white' : 'none',
                 borderRadius: 0,
                 pb: 0.5
               }}

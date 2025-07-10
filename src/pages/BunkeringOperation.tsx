@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -8,11 +9,13 @@ import {
   Snackbar,
   Paper,
   Tabs,
-  Tab
+  Tab,
+  Button
 } from '@mui/material';
 import {
   Today as TodayIcon,
-  MenuBook as MenuBookIcon
+  MenuBook as MenuBookIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import DataTable, { Column } from '../components/DataTable';
 import { BunkeringOperation as BunkeringOperationType, FuelType } from '../types';
@@ -36,6 +39,7 @@ const columns: Column[] = [
 ];
 
 const BunkeringOperation = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState<BunkeringOperationType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -185,9 +189,26 @@ const BunkeringOperation = () => {
 
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
-      <Typography variant="h5" gutterBottom align="center" sx={{ mb: 3, fontWeight: 500 }}>
-        Bunkering Operation
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Button
+          onClick={() => navigate('/')}
+          startIcon={<ArrowBackIcon />}
+          variant="contained"
+          sx={{ 
+            borderRadius: '4px',
+            textTransform: 'uppercase',
+            fontWeight: 500,
+            py: 1,
+            px: 2
+          }}
+        >
+          Home
+        </Button>
+        <Typography variant="h5" sx={{ fontWeight: 500, flexGrow: 1, textAlign: 'center' }}>
+          Bunkering Operation
+        </Typography>
+        <Box sx={{ width: '120px' }} /> {/* Spacer to center the title */}
+      </Box>
 
       {/* Loading indicator */}
       {loading && (
