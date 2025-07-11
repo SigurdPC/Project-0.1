@@ -213,8 +213,8 @@ const DailyEvents = () => {
           Home
         </Button>
         <Typography variant="h5" sx={{ fontWeight: 500, flexGrow: 1, textAlign: 'center' }}>
-          Daily Events
-        </Typography>
+        Daily Events
+      </Typography>
         <Box sx={{ width: '120px' }} /> {/* Spacer to center the title */}
       </Box>
 

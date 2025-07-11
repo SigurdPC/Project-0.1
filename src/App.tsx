@@ -9,12 +9,14 @@ import DailyROB from './pages/DailyROB';
 import VesselCertificates from './pages/VesselCertificates';
 import DatePickerProvider from './providers/DatePickerProvider';
 import ThemeProvider from './providers/ThemeProvider';
+import GlobalThemeToggle from './components/common/GlobalThemeToggle';
 import { DPTimePage } from './pages/DPTimePage';
 
 function App() {
   return (
     <ThemeProvider>
       <CssBaseline />
+      <GlobalThemeToggle />
       <DatePickerProvider>
         <Router>
           <Routes>

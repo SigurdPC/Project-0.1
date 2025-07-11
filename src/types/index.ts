@@ -45,7 +45,8 @@ export interface VesselCertificate {
   name: string;
   issuedBy: string;
   issueDate: string;
-  expirationDate: string;
+  expirationDate: string | null;
   fileName?: string;
   filePath?: string;
+  comments?: string;
 } 

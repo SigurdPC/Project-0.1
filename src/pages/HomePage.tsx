@@ -10,9 +10,7 @@ import {
   CardContent, 
   CardActionArea,
   Divider,
-  useTheme,
-  IconButton,
-  Tooltip
+  useTheme
 } from '@mui/material';
 import { 
   Engineering as EngineeringIcon,
@@ -22,19 +20,15 @@ import {
   Storage as DailyROBIcon,
   AccessTime as DPHoursIcon,
   DirectionsBoat as ShipIcon,
-  Brightness4 as DarkModeIcon,
-  Brightness7 as LightModeIcon,
   MenuBook as MenuBookIcon,
   People as PeopleIcon,
   Description as DescriptionIcon,
   Settings as SettingsIcon
 } from '@mui/icons-material';
-import { useTheme as useCustomTheme } from '../providers/ThemeProvider';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const { isNightMode, toggleTheme } = useCustomTheme();
 
   const engineItems = [
     {
@@ -104,28 +98,7 @@ const HomePage: React.FC = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ position: 'relative', mb: 4 }}>
-        <Tooltip title={isNightMode ? "Switch to Light Mode" : "Switch to Night Mode"}>
-          <IconButton
-            onClick={toggleTheme}
-            sx={{ 
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              backgroundColor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: '8px',
-              p: 1,
-              boxShadow: theme.shadows[2],
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover
-              }
-            }}
-          >
-            {isNightMode ? <LightModeIcon /> : <DarkModeIcon />}
-          </IconButton>
-        </Tooltip>
-        
+      <Box sx={{ mb: 4 }}>
         <Box sx={{ textAlign: 'center', pt: 2 }}>
           <ShipIcon sx={{ fontSize: 60, color: theme.palette.primary.main, mb: 2 }} />
           <Typography variant="h3" component="h1" gutterBottom fontWeight="bold">
