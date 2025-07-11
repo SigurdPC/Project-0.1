@@ -5,16 +5,6 @@ import API_BASE_URL from './config';
 // Define the API base URL
 const API_URL = API_BASE_URL;
 
-// Define the DPHours interface to match the backend model
-export interface DPHours {
-  id?: string;
-  date: string;
-  time: string;
-  location: string;
-  operationType: 'DP Setup' | 'Moving in' | 'Handling Offshore' | 'Pulling Out' | 'DP OFF';
-  createdAt?: Date;
-}
-
 // Create axios instance with base URL
 const api = axios.create({
   baseURL: API_URL,

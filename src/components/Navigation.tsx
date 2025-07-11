@@ -108,6 +108,19 @@ const Navigation = () => {
             >
               DP Hours
             </Button>
+            <Button 
+              component={RouterLink} 
+              to="/vessel-certificates"
+              color="inherit"
+              sx={{ 
+                fontWeight: isActive('/vessel-certificates') ? 'bold' : 'normal',
+                borderBottom: isActive('/vessel-certificates') ? '2px solid white' : 'none',
+                borderRadius: 0,
+                pb: 0.5
+              }}
+            >
+              Vessel Certificates
+            </Button>
             <Tooltip title={isNightMode ? "Switch to Light Mode" : "Switch to Night Mode"}>
               <IconButton
                 color="inherit"
