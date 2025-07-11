@@ -334,8 +334,13 @@ const DataTable = ({ columns, data, onAdd, onEdit, onDelete }: DataTableProps) =
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Button
           variant="contained"
-          color="primary"
           onClick={() => handleOpen()}
+          sx={{ 
+            borderRadius: '4px',
+            textTransform: 'uppercase',
+            fontWeight: 500,
+            py: 1
+          }}
         >
           ADD NEW
         </Button>

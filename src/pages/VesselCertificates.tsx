@@ -25,7 +25,8 @@ import {
   CircularProgress,
   Alert,
   FormControlLabel,
-  Checkbox
+  Checkbox,
+  InputAdornment
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -36,7 +37,9 @@ import {
   Download as DownloadIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
-  Comment as CommentIcon
+  Comment as CommentIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { VesselCertificate } from '../types';
 import { vesselCertificatesApi } from '../api/vesselCertificatesApi';
@@ -142,6 +145,7 @@ const VesselCertificates: React.FC = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hasNoExpiration, setHasNoExpiration] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -448,6 +452,26 @@ const VesselCertificates: React.FC = () => {
     return !expirationDate;
   };
 
+  // Filter certificates based on search query
+  const filteredCertificates = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return certificates;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    return certificates.filter(certificate => {
+      const nameMatch = certificate.name.toLowerCase().includes(query);
+      const issuedByMatch = certificate.issuedBy.toLowerCase().includes(query);
+      const commentsMatch = certificate.comments?.toLowerCase().includes(query) || false;
+      
+      return nameMatch || issuedByMatch || commentsMatch;
+    });
+  }, [certificates, searchQuery]);
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
@@ -475,7 +499,6 @@ const VesselCertificates: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Button
             variant="contained"
-            startIcon={<AddIcon />}
             onClick={handleAddNew}
             sx={{ 
               borderRadius: '4px',
@@ -484,11 +507,56 @@ const VesselCertificates: React.FC = () => {
               py: 1
             }}
           >
-            Add New
+            ADD NEW
           </Button>
-          <Typography variant="h6" color="text.secondary">
-            Total: {certificates.length} certificates
-          </Typography>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="h6" color="text.secondary">
+              Total: {filteredCertificates.length} of {certificates.length} certificates
+            </Typography>
+            
+            <TextField
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              size="small"
+              autoComplete="off"
+              sx={{ 
+                width: '250px',
+                '& .MuiOutlinedInput-root': {
+                  height: 40,
+                  borderRadius: '8px',
+                },
+                '& .MuiInputBase-input': {
+                  height: '100%',
+                  boxSizing: 'border-box',
+                  padding: '8px 14px',
+                }
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={handleClearSearch}
+                      sx={{ 
+                        '&:hover': { 
+                          backgroundColor: 'action.hover' 
+                        }
+                      }}
+                    >
+                      <ClearIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+          </Box>
         </Box>
 
         {error && (
@@ -501,15 +569,24 @@ const VesselCertificates: React.FC = () => {
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : certificates.length === 0 ? (
+        ) : filteredCertificates.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <DescriptionIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              No certificates found
+              {searchQuery ? 'No certificates found matching your search' : 'No certificates found'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Add your first certificate to get started
+              {searchQuery ? 'Try adjusting your search terms' : 'Add your first certificate to get started'}
             </Typography>
+            {searchQuery && (
+              <Button
+                onClick={handleClearSearch}
+                sx={{ mt: 2 }}
+                variant="outlined"
+              >
+                Clear Search
+              </Button>
+            )}
           </Box>
         ) : (
           <TableContainer>
@@ -524,7 +601,7 @@ const VesselCertificates: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {certificates.map((certificate) => (
+                {filteredCertificates.map((certificate) => (
                   <TableRow key={certificate.id} hover>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -582,15 +659,13 @@ const VesselCertificates: React.FC = () => {
         maxWidth="md"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: '12px' }
+          sx: { borderRadius: '8px' }
         }}
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h6" component="div">
-            {isEditing ? 'Edit Certificate' : 'Add New Certificate'}
-          </Typography>
+        <DialogTitle>
+          {isEditing ? 'Edit Certificate' : 'Add New Certificate'}
         </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent dividers>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Autocomplete
@@ -613,6 +688,7 @@ const VesselCertificates: React.FC = () => {
                     required
                     variant="outlined"
                     helperText="Type your own certificate name or select from suggestions"
+                    InputLabelProps={{ shrink: true }}
                   />
                 )}
                 freeSolo
@@ -658,6 +734,7 @@ const VesselCertificates: React.FC = () => {
                 value={formData.issuedBy}
                 onChange={(e) => setFormData({ ...formData, issuedBy: e.target.value })}
                 autoComplete="off"
+                InputLabelProps={{ shrink: true }}
                 InputProps={{
                   startAdornment: <BusinessIcon sx={{ mr: 1, color: 'text.secondary' }} />
                 }}
@@ -671,6 +748,8 @@ const VesselCertificates: React.FC = () => {
                 onChange={(date) => setFormData({ ...formData, issueDate: date || '' })}
                 required
                 placeholder="dd/mm/yyyy"
+                fullWidth
+                inputProps={{ style: { height: 56 } }}
               />
             </Grid>
 
@@ -682,6 +761,8 @@ const VesselCertificates: React.FC = () => {
                 required={!hasNoExpiration}
                 placeholder="dd/mm/yyyy"
                 disabled={hasNoExpiration}
+                fullWidth
+                inputProps={{ style: { height: 56 } }}
               />
               <FormControlLabel
                 control={
@@ -712,12 +793,27 @@ const VesselCertificates: React.FC = () => {
               <TextField
                 label="Comments"
                 fullWidth
-                multiline
-                rows={2}
                 variant="outlined"
                 value={formData.comments}
                 onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                 placeholder="Additional notes or comments"
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ 
+                  style: {
+                    height: 56,
+                    padding: '14px',
+                    boxSizing: 'border-box'
+                  }
+                }}
+                sx={{ 
+                  '& .MuiInputBase-root': {
+                    height: 56
+                  },
+                  '& input': {
+                    height: '100%',
+                    boxSizing: 'border-box'
+                  }
+                }}
               />
             </Grid>
 
@@ -779,19 +875,14 @@ const VesselCertificates: React.FC = () => {
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1, justifyContent: 'space-between' }}>
-          <Button onClick={handleCloseDialog} color="inherit">
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>
             Close
           </Button>
           <Button
             onClick={handleSave}
             variant="contained"
             disabled={!formData.name || !formData.issuedBy || !formData.issueDate || (!hasNoExpiration && !formData.expirationDate)}
-            sx={{ 
-              borderRadius: '4px',
-              textTransform: 'uppercase',
-              fontWeight: 500
-            }}
           >
             {isEditing ? 'Update' : 'Save'}
           </Button>
@@ -805,18 +896,11 @@ const VesselCertificates: React.FC = () => {
         maxWidth="sm"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: '12px' }
+          sx: { borderRadius: '8px' }
         }}
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <DeleteIcon sx={{ color: 'error.main' }} />
-            <Typography variant="h6" component="div">
-              Delete Certificate
-            </Typography>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogTitle>Delete Certificate</DialogTitle>
+        <DialogContent dividers>
           <Typography variant="body1" gutterBottom>
             Are you sure you want to delete this certificate?
           </Typography>
@@ -860,8 +944,8 @@ const VesselCertificates: React.FC = () => {
             }}
           />
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button onClick={handleDeleteCancel} color="inherit">
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>
             Cancel
           </Button>
           <Button
@@ -869,11 +953,6 @@ const VesselCertificates: React.FC = () => {
             variant="contained"
             color="error"
             disabled={deleteConfirmText !== 'Delete'}
-            sx={{ 
-              borderRadius: '4px',
-              textTransform: 'uppercase',
-              fontWeight: 500
-            }}
           >
             Delete Certificate
           </Button>
@@ -887,18 +966,11 @@ const VesselCertificates: React.FC = () => {
         maxWidth="md"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: '12px' }
+          sx: { borderRadius: '8px' }
         }}
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <DescriptionIcon sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" component="div">
-              Certificate Details
-            </Typography>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogTitle>Certificate Details</DialogTitle>
+        <DialogContent dividers>
           {selectedCertificate && (
             <Grid container spacing={3}>
               <Grid item xs={12}>
@@ -1042,19 +1114,14 @@ const VesselCertificates: React.FC = () => {
             </Grid>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 1, justifyContent: 'space-between' }}>
-          <Button onClick={handleDetailsClose} color="inherit">
+        <DialogActions>
+          <Button onClick={handleDetailsClose}>
             Close
           </Button>
           <Button
             onClick={handleEditClick}
             variant="contained"
             startIcon={<EditIcon />}
-            sx={{ 
-              borderRadius: '4px',
-              textTransform: 'uppercase',
-              fontWeight: 500
-            }}
           >
             Edit
           </Button>

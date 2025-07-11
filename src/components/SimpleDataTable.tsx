@@ -159,10 +159,15 @@ const SimpleDataTable = ({ columns, data, onAdd, onEdit, onDelete }: SimpleDataT
       <Box sx={{ mb: 2 }}>
         <Button
           variant="contained"
-          color="primary"
           onClick={() => handleOpen()}
+          sx={{ 
+            borderRadius: '4px',
+            textTransform: 'uppercase',
+            fontWeight: 500,
+            py: 1
+          }}
         >
-          Add New
+          ADD NEW
         </Button>
       </Box>
       
