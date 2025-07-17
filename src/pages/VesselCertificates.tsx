@@ -146,7 +146,7 @@ const VesselCertificates: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hasNoExpiration, setHasNoExpiration] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const [formData, setFormData] = useState({
     name: '',
     issuedBy: '',
@@ -246,7 +246,7 @@ const VesselCertificates: React.FC = () => {
   const generateDownloadFileName = (certificate: VesselCertificate): string => {
     // Use the same logic as generateFileName for consistency
     const generatedName = generateFileName(certificate.name, certificate.expirationDate, certificate.fileName);
-    
+
     // If generateFileName didn't work, fallback to manual generation
     if (!generatedName) {
       const extension = certificate.fileName?.split('.').pop() || 'pdf';
@@ -254,14 +254,14 @@ const VesselCertificates: React.FC = () => {
         .replace(/[^a-zA-Z0-9\s]/g, '')
         .replace(/\s+/g, '_')
         .substring(0, 50);
-      
-      const dateString = certificate.expirationDate 
+
+      const dateString = certificate.expirationDate
         ? `${new Date(certificate.expirationDate).getDate().toString().padStart(2, '0')}-${(new Date(certificate.expirationDate).getMonth() + 1).toString().padStart(2, '0')}-${new Date(certificate.expirationDate).getFullYear()}`
         : 'Permanent';
-      
+
       return `${cleanName}_${dateString}.${extension}`;
     }
-    
+
     return generatedName;
   };
 
@@ -319,7 +319,7 @@ const VesselCertificates: React.FC = () => {
             console.warn('Failed to delete associated file:', err);
           }
         }
-        
+
         await vesselCertificatesApi.delete(certificateToDelete.id);
         await loadCertificates(); // Reload to get updated data
         handleDeleteCancel();
@@ -333,10 +333,10 @@ const VesselCertificates: React.FC = () => {
   // Generate safe filename based on certificate name and expiration date
   const generateFileName = (certificateName: string, expirationDate: string | null, originalFileName?: string) => {
     if (!originalFileName) return undefined;
-    
+
     // Get file extension
     const extension = originalFileName.split('.').pop();
-    
+
     // Clean certificate name - remove special characters and limit length
     const cleanName = certificateName
       .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special characters
@@ -345,19 +345,19 @@ const VesselCertificates: React.FC = () => {
       .replace(/^_|_$/g, '') // Remove leading/trailing underscores
       .substring(0, 50) // Limit to 50 characters
       .trim(); // Remove any whitespace
-    
+
     // Ensure we have a valid name
     if (!cleanName) {
       return `Certificate_${Date.now()}.${extension}`;
     }
-    
+
     // Format expiration date or use "Permanent" for no expiration
     let dateString = 'Permanent';
     if (expirationDate && expirationDate !== '9999-12-31') {
       const expDate = new Date(expirationDate);
       dateString = `${expDate.getDate().toString().padStart(2, '0')}-${(expDate.getMonth() + 1).toString().padStart(2, '0')}-${expDate.getFullYear()}`;
     }
-    
+
     return `${cleanName}_${dateString}.${extension}`;
   };
 
@@ -371,10 +371,10 @@ const VesselCertificates: React.FC = () => {
         if (selectedFile) {
           const expirationDateForFilename = hasNoExpiration ? null : formData.expirationDate;
           const customFileName = generateFileName(formData.name, expirationDateForFilename, selectedFile.name);
-          
+
           // Use the full custom filename (including extension) without splitting
           const fileBaseName = customFileName?.replace(/\.[^/.]+$/, ''); // Remove extension more safely
-          
+
           try {
             const uploadResponse = await certificateFilesApi.uploadFile(selectedFile, fileBaseName);
             uploadedFileName = uploadResponse.filename;
@@ -420,7 +420,7 @@ const VesselCertificates: React.FC = () => {
           // Create new certificate
           await vesselCertificatesApi.create(certificateData);
         }
-        
+
         await loadCertificates(); // Reload to get updated data
         handleCloseDialog();
       } catch (err) {
@@ -463,7 +463,7 @@ const VesselCertificates: React.FC = () => {
       const nameMatch = certificate.name.toLowerCase().includes(query);
       const issuedByMatch = certificate.issuedBy.toLowerCase().includes(query);
       const commentsMatch = certificate.comments?.toLowerCase().includes(query) || false;
-      
+
       return nameMatch || issuedByMatch || commentsMatch;
     });
   }, [certificates, searchQuery]);
@@ -479,7 +479,7 @@ const VesselCertificates: React.FC = () => {
           onClick={() => navigate('/')}
           startIcon={<ArrowBackIcon />}
           variant="contained"
-          sx={{ 
+          sx={{
             borderRadius: '4px',
             textTransform: 'uppercase',
             fontWeight: 500,
@@ -500,7 +500,7 @@ const VesselCertificates: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleAddNew}
-            sx={{ 
+            sx={{
               borderRadius: '4px',
               textTransform: 'uppercase',
               fontWeight: 500,
@@ -509,19 +509,19 @@ const VesselCertificates: React.FC = () => {
           >
             ADD NEW
           </Button>
-          
+
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="h6" color="text.secondary">
               Total: {filteredCertificates.length} of {certificates.length} certificates
             </Typography>
-            
+
             <TextField
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               size="small"
               autoComplete="off"
-              sx={{ 
+              sx={{
                 width: '250px',
                 '& .MuiOutlinedInput-root': {
                   height: 40,
@@ -544,9 +544,9 @@ const VesselCertificates: React.FC = () => {
                     <IconButton
                       size="small"
                       onClick={handleClearSearch}
-                      sx={{ 
-                        '&:hover': { 
-                          backgroundColor: 'action.hover' 
+                      sx={{
+                        '&:hover': {
+                          backgroundColor: 'action.hover'
                         }
                       }}
                     >
@@ -700,7 +700,7 @@ const VesselCertificates: React.FC = () => {
                     option.toLowerCase().includes(inputValue.toLowerCase())
                   );
                   // Show suggestion to add custom certificate if no matches
-                  if (inputValue !== '' && !filtered.some(option => 
+                  if (inputValue !== '' && !filtered.some(option =>
                     option.toLowerCase() === inputValue.toLowerCase()
                   )) {
                     filtered.push(`Add "${inputValue}"`);
@@ -710,8 +710,8 @@ const VesselCertificates: React.FC = () => {
                 renderOption={(props, option) => {
                   if (option.startsWith('Add "')) {
                     return (
-                      <Box component="li" {...props} sx={{ 
-                        fontStyle: 'italic', 
+                      <Box component="li" {...props} sx={{
+                        fontStyle: 'italic',
                         color: 'primary.main',
                         backgroundColor: 'primary.50'
                       }}>
@@ -724,7 +724,7 @@ const VesselCertificates: React.FC = () => {
                 }}
               />
             </Grid>
-            
+
             <Grid item xs={12}>
               <TextField
                 label="Issued By"
@@ -779,9 +779,9 @@ const VesselCertificates: React.FC = () => {
                   />
                 }
                 label="No expiration"
-                sx={{ 
+                sx={{
                   mt: 1,
-                  '& .MuiFormControlLabel-label': { 
+                  '& .MuiFormControlLabel-label': {
                     fontSize: '0.875rem',
                     color: 'text.secondary'
                   }
@@ -798,14 +798,14 @@ const VesselCertificates: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                 placeholder="Additional notes or comments"
                 InputLabelProps={{ shrink: true }}
-                inputProps={{ 
+                inputProps={{
                   style: {
                     height: 56,
                     padding: '14px',
                     boxSizing: 'border-box'
                   }
                 }}
-                sx={{ 
+                sx={{
                   '& .MuiInputBase-root': {
                     height: 56
                   },
@@ -825,9 +825,9 @@ const VesselCertificates: React.FC = () => {
                 onChange={handleFileSelect}
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               />
-              <Box 
+              <Box
                 onClick={handleFileAreaClick}
-                sx={{ 
+                sx={{
                   border: '2px dashed #e0e0e0',
                   borderRadius: '8px',
                   p: 3,
@@ -905,14 +905,14 @@ const VesselCertificates: React.FC = () => {
             Are you sure you want to delete this certificate?
           </Typography>
           {certificateToDelete && (
-                         <Box sx={{ 
-               backgroundColor: 'background.default', 
-               p: 2, 
-               borderRadius: '8px', 
-               mt: 2,
-               border: '1px solid',
-               borderColor: 'divider'
-             }}>
+            <Box sx={{
+              backgroundColor: 'background.default',
+              p: 2,
+              borderRadius: '8px',
+              mt: 2,
+              border: '1px solid',
+              borderColor: 'divider'
+            }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                 {certificateToDelete.name}
               </Typography>
@@ -966,166 +966,263 @@ const VesselCertificates: React.FC = () => {
         maxWidth="md"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: '8px' }
+          sx: {
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.08)'
+          }
+        }}
+        TransitionProps={{
+          timeout: 300
         }}
       >
-        <DialogTitle>Certificate Details</DialogTitle>
-        <DialogContent dividers>
+        <DialogTitle sx={{
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          py: 2.5,
+          px: 3,
+          bgcolor: 'background.paper',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Certificate Details
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <IconButton
+              onClick={handleEditClick}
+              size="small"
+              sx={{
+                bgcolor: 'action.hover',
+                '&:hover': {
+                  bgcolor: 'primary.main',
+                  color: 'white'
+                }
+              }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              onClick={handleDetailsClose}
+              size="small"
+              sx={{
+                bgcolor: 'action.hover',
+                '&:hover': {
+                  bgcolor: 'error.light',
+                  color: 'white'
+                }
+              }}
+            >
+              <ClearIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
           {selectedCertificate && (
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <Box sx={{ 
-                  backgroundColor: 'background.default',
+            <Box sx={{ p: 3 }}>
+              <Box sx={{
+                bgcolor: 'background.paper',
+                borderRadius: '12px',
+                border: '1px solid',
+                borderColor: 'divider',
+                overflow: 'hidden'
+              }}>
+                <Box sx={{
                   p: 3,
-                  borderRadius: '8px',
-                  border: '1px solid',
-                  borderColor: 'divider'
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 2
                 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                  <Box sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '12px',
+                    bgcolor: 'primary.light',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <DescriptionIcon sx={{ color: 'primary.main', fontSize: 28 }} />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" sx={{
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      mb: 0.5
+                    }}>
                       {selectedCertificate.name}
                     </Typography>
-                    <Tooltip title="Delete certificate">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => {
-                          if (selectedCertificate) {
-                            handleDeleteClick(selectedCertificate);
-                          }
-                        }}
-                        sx={{ 
-                          backgroundColor: 'background.default',
-                          color: 'error.main',
-                          width: 32,
-                          height: 32,
-                          border: '1px solid',
-                          borderColor: 'error.main',
-                          '&:hover': { 
-                            backgroundColor: 'error.main',
-                            color: 'white',
-                            transform: 'scale(1.1)'
-                          },
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        <DeleteIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <BusinessIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Issued by {selectedCertificate.issuedBy}
+                      </Typography>
+                    </Box>
                   </Box>
-                  
-                  <Grid container spacing={2}>
+                  {isPermanent(selectedCertificate.expirationDate) ? (
+                    <Chip
+                      label="Permanent"
+                      color="info"
+                      size="small"
+                      sx={{
+                        borderRadius: '8px',
+                        fontWeight: 500,
+                        px: 1
+                      }}
+                    />
+                  ) : isExpired(selectedCertificate.expirationDate) ? (
+                    <Chip
+                      label="Expired"
+                      color="error"
+                      size="small"
+                      sx={{
+                        borderRadius: '8px',
+                        fontWeight: 500,
+                        px: 1
+                      }}
+                    />
+                  ) : isExpiringSoon(selectedCertificate.expirationDate) ? (
+                    <Chip
+                      label="Expiring Soon"
+                      color="warning"
+                      size="small"
+                      sx={{
+                        borderRadius: '8px',
+                        fontWeight: 500,
+                        px: 1
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      label="Valid"
+                      color="success"
+                      size="small"
+                      sx={{
+                        borderRadius: '8px',
+                        fontWeight: 500,
+                        px: 1
+                      }}
+                    />
+                  )}
+                </Box>
+
+                <Box sx={{ p: 3 }}>
+                  <Grid container spacing={3}>
                     <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Issued By
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {selectedCertificate.issuedBy}
-                      </Typography>
-                    </Grid>
-                    
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Status
-                      </Typography>
-                      <Box>
-                        {isPermanent(selectedCertificate.expirationDate) ? (
-                          <Chip label="Permanent" color="info" size="small" />
-                        ) : isExpired(selectedCertificate.expirationDate) ? (
-                          <Chip label="Expired" color="error" size="small" />
-                        ) : isExpiringSoon(selectedCertificate.expirationDate) ? (
-                          <Chip label="Expiring Soon" color="warning" size="small" />
-                        ) : (
-                          <Chip label="Valid" color="success" size="small" />
-                        )}
+                      <Box sx={{
+                        p: 2,
+                        bgcolor: 'action.hover',
+                        borderRadius: '8px',
+                        height: '100%'
+                      }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Issue Date
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                          {formatDate(selectedCertificate.issueDate)}
+                        </Typography>
                       </Box>
                     </Grid>
-                    
+
                     <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Issue Date
-                      </Typography>
-                      <Typography variant="body1">
-                        {formatDate(selectedCertificate.issueDate)}
-                      </Typography>
+                      <Box sx={{
+                        p: 2,
+                        bgcolor: 'action.hover',
+                        borderRadius: '8px',
+                        height: '100%'
+                      }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Expiration Date
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                          {formatDate(selectedCertificate.expirationDate)}
+                        </Typography>
+                      </Box>
                     </Grid>
-                    
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Expiration Date
-                      </Typography>
-                      <Typography variant="body1">
-                        {formatDate(selectedCertificate.expirationDate)}
-                      </Typography>
-                    </Grid>
-                    
+
                     {selectedCertificate.comments && (
                       <Grid item xs={12}>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                          Comments
-                        </Typography>
-                        <Typography variant="body1" sx={{ 
-                          backgroundColor: 'action.hover',
-                          p: 1.5,
-                          borderRadius: '4px',
-                          fontStyle: 'italic'
+                        <Box sx={{
+                          p: 2,
+                          bgcolor: 'action.hover',
+                          borderRadius: '8px'
                         }}>
-                          {selectedCertificate.comments}
-                        </Typography>
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Comments
+                          </Typography>
+                          <Typography variant="body1" sx={{
+                            color: 'text.primary',
+                            fontStyle: 'italic'
+                          }}>
+                            {selectedCertificate.comments}
+                          </Typography>
+                        </Box>
                       </Grid>
                     )}
-                    
+
                     {selectedCertificate.fileName && (
                       <Grid item xs={12}>
-                        <Box sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 1,
-                          backgroundColor: 'action.hover',
-                          p: 0.75,
-                          borderRadius: '4px'
+                        <Paper elevation={0} sx={{
+                          p: 2,
+                          bgcolor: 'background.default',
+                          border: '1px dashed',
+                          borderColor: 'divider',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2
                         }}>
-                          <AttachFileIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
-                          <Typography variant="caption" sx={{ flex: 1, fontSize: '0.8rem' }}>
-                            {generateDownloadFileName(selectedCertificate)}
-                          </Typography>
-                          {selectedCertificate.fileName && (
-                            <Tooltip title="Download file">
-                              <IconButton
-                                size="medium"
-                                onClick={() => handleFileOpen(selectedCertificate)}
-                                sx={{ 
-                                  p: 1,
-                                  '&:hover': { 
-                                    backgroundColor: 'primary.main',
-                                    color: 'white'
-                                  }
-                                }}
-                              >
-                                <DownloadIcon sx={{ fontSize: 20 }} />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                        </Box>
+                          <Box sx={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '8px',
+                            bgcolor: 'primary.light',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <AttachFileIcon sx={{ color: 'primary.main' }} />
+                          </Box>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="subtitle2" sx={{
+                              color: 'text.primary',
+                              fontWeight: 500,
+                              mb: 0.5
+                            }}>
+                              Attached Document
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {generateDownloadFileName(selectedCertificate)}
+                            </Typography>
+                          </Box>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => handleFileOpen(selectedCertificate)}
+                            sx={{
+                              borderRadius: '8px',
+                              textTransform: 'none',
+                              boxShadow: 'none',
+                              '&:hover': {
+                                boxShadow: 'none'
+                              }
+                            }}
+                          >
+                            Download
+                          </Button>
+                        </Paper>
                       </Grid>
                     )}
                   </Grid>
                 </Box>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDetailsClose}>
-            Close
-          </Button>
-          <Button
-            onClick={handleEditClick}
-            variant="contained"
-            startIcon={<EditIcon />}
-          >
-            Edit
-          </Button>
-        </DialogActions>
       </Dialog>
     </Container>
   );
